@@ -1,0 +1,8 @@
+#ifndef _OPCODE_H_
+#define _OPCODE_H_
+
+#define OPCODE_PING 0x02
+#define OPCODE_KEY_EXCHANGE_REQUEST 0x34
+#define OPCODE_KEY_EXCHANGE_RESPONSE 0x35
+
+#endif

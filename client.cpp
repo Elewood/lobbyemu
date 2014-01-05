@@ -2,6 +2,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <netinet/in.h>
+#include <stdlib.h>
+#include "opcode.h"
 #include "client.h"
 
 Client::Client(int socket)
@@ -14,8 +16,10 @@ Client::Client(int socket)
 	this->rxBufferLength = 2048;
 	this->rxBuffer = new uint8_t[this->rxBufferLength];
 
-	// Create Cryptography Handler
+	// Create Cryptography Objects
 	crypto = new Crypto((uint8_t *)"hackOnline", 10);
+	inCrypto = NULL;
+	outCrypto = NULL;
 
 	// Initialize Timeout Ticker
 	this->lastHeartbeat = time(NULL);
@@ -61,6 +65,9 @@ void Client::MoveRXPointer(int delta)
 
 		// Update Timeout Ticker
 		this->lastHeartbeat = time(NULL);
+
+		// Log Event
+		printf("Added %d bytes to RX Buffer!\n", delta);
 	}
 
 	// Processed Data
@@ -74,6 +81,9 @@ void Client::MoveRXPointer(int delta)
 
 		// Fix Position
 		this->rxBufferPosition -= delta;
+
+		// Log Event
+		printf("Erased %d bytes from RX Buffer\n", delta);
 	}
 }
 
@@ -94,37 +104,173 @@ bool Client::ProcessRXBuffer()
 			// Create Crypto Input Pointer
 			uint8_t * encryptedPacket = this->rxBuffer + 2 * sizeof(uint16_t);
 
-			// Substract Packet Length Field from Packet Length
+			// Substract Opcode Field from Packet Length
 			packetLength -= sizeof(uint16_t);
 
 			// Output Packet Opcode
 			printf("Packet Opcode: 0x%02X\n", packetOpcode);
 
-			// Output Encrypted Data
-			printf("Encrypted Data: ");
-			for(int i = 0; i < packetLength; i++)
+			// Packet has a body
+			if(packetLength > 0)
 			{
-				printf("0x%02X", encryptedPacket[i]);
-				if(i != packetLength - 1) printf(", ");
+				/*
+				// Output Encrypted Data
+				printf("Encrypted Data: ");
+				for(int i = 0; i < packetLength; i++)
+				{
+					printf("0x%02X", encryptedPacket[i]);
+					if(i != packetLength - 1) printf(", ");
+				}
+				printf("\n");
+				*/
+
+				// Decrypt Data
+				uint8_t decryptedPacket[0x40C];
+				uint32_t decryptedPacketLength = sizeof(decryptedPacket);
+				crypto->Decrypt(encryptedPacket, packetLength, decryptedPacket, &decryptedPacketLength);
+
+				/*
+				// Output Decrypted Data
+				printf("Decrypted Data: ");
+				for(uint32_t i = 0; i < decryptedPacketLength; i++)
+				{
+					printf("0x%02X", decryptedPacket[i]);
+					if(i != decryptedPacketLength - 1) printf(", ");
+				}
+				printf("\n");
+				*/
+
+				// Invalid Packet Length (body is never < 3)
+				if(decryptedPacketLength < 3)
+				{
+					printf("Received packet with an invalid body length of %u bytes!\n", decryptedPacketLength);
+					return false;
+				}
+
+				// Read Packet Checksum
+				uint16_t packetChecksum = ntohs(*(uint16_t *)decryptedPacket);
+
+				// Calculate Checksum
+				uint16_t calculatedPacketChecksum = crypto->Checksum(decryptedPacket + sizeof(uint16_t), decryptedPacketLength - sizeof(uint16_t));
+
+				// Invalid Packet Checksum
+				if(packetChecksum != calculatedPacketChecksum)
+				{
+					printf("Received packet failed the checksum test (0x%02X != 0x%02X)!\n", packetChecksum, calculatedPacketChecksum);
+					return false;
+				}
+
+				// Packet Switch
+				switch(packetOpcode)
+				{
+					// Prevent Hacking Attempts
+					case OPCODE_PING:
+					printf("0x%02X packets shouldn't have a body!\n", packetOpcode);
+					return false;
+
+					// Key Exchange Request
+					case OPCODE_KEY_EXCHANGE_REQUEST:
+					{
+						// Read Key Length from Packet
+						uint16_t keyLength = ntohs(*(uint16_t *)(decryptedPacket + sizeof(uint16_t)));
+						
+						// Read Key from Packet
+						uint8_t * key = decryptedPacket + sizeof(uint16_t) * 2;
+						
+						// Key Length out of bounds
+						if(keyLength == 0 || keyLength >= decryptedPacketLength - (sizeof(uint16_t) * 2))
+						{
+							printf("Received key length (%u > %lu) exceeds the packet boundaries!\n", keyLength, decryptedPacketLength - sizeof(uint16_t) * 2);
+							return false;
+						}
+						
+						// Key Length over maximum allowed length
+						if(keyLength > 16)
+						{
+							printf("Received key length exceeds the allowed maximum key length (%u > 16)\n", keyLength);
+							return false;
+						}
+						
+						// Create Cryptography Objects
+						inCrypto = new Crypto(key, keyLength);
+						uint8_t randKey[16];
+						for(uint32_t i = 0; i < sizeof(randKey); i++) randKey[i] = rand() % 256;
+						outCrypto = new Crypto(randKey, sizeof(randKey));
+						
+						// Allocate Response Buffer
+						uint8_t response[52];
+						uint8_t decryptedResponse[48];
+						
+						// Cast Fields
+						uint16_t * packetLengthField = (uint16_t *)response;
+						uint16_t * packetOpcodeField = &packetLengthField[1];
+						uint8_t * packetPayloadField = (uint8_t *)&packetOpcodeField[1];
+						uint16_t * checksumField = (uint16_t *)decryptedResponse;
+						uint16_t * keyLengthField1 = &checksumField[1];
+						uint8_t * keyField1 = (uint8_t *)&keyLengthField1[1];
+						uint16_t * keyLengthField2 = (uint16_t *)(keyField1 + keyLength);
+						uint8_t * keyField2 = (uint8_t *)&keyLengthField2[1];
+						
+						// Write Static Data
+						*packetLengthField = htons(sizeof(response) - sizeof(*packetLengthField));
+						*packetOpcodeField = htons(OPCODE_KEY_EXCHANGE_RESPONSE);
+						*keyLengthField1 = htons(keyLength);
+						*keyLengthField2 = htons(sizeof(randKey));
+						
+						// Write Secret Keys
+						memcpy(keyField1, key, keyLength);
+						memcpy(keyField2, randKey, sizeof(randKey));
+						
+						// Calculate Checksum
+						*checksumField = htons(crypto->Checksum((uint8_t *)&checksumField[1], sizeof(decryptedResponse) - sizeof(*checksumField)));
+						
+						// Encrypt Response
+						uint32_t packetPayloadFieldSize = sizeof(response) - sizeof(*packetLengthField) - sizeof(*packetOpcodeField);
+						crypto->Encrypt(decryptedResponse, sizeof(decryptedResponse), packetPayloadField, &packetPayloadFieldSize);
+						
+						// Send Response
+						send(socket, response, sizeof(response), 0);
+
+						// Log Event
+						printf("Key Exchange finished!\n");
+
+						// Break Switch
+						break;
+					}
+
+					// Unknown Packet Opcode
+					default:
+					printf("Unknown packet opcode 0x%02X!\n", packetOpcode);
+					return false;
+				}
 			}
-			printf("\n");
 
-			// Decrypt Data
-			uint8_t decryptedPacket[0x40C];
-			uint32_t decryptedPacketLength = sizeof(decryptedPacket);
-			crypto->Decrypt(encryptedPacket, packetLength, decryptedPacket, &decryptedPacketLength);
-
-			// Output Decrypted Data
-			printf("Decrypted Data: ");
-			for(uint32_t i = 0; i < decryptedPacketLength; i++)
+			// Packet has no body
+			else
 			{
-				printf("0x%02X", decryptedPacket[i]);
-				if(i != decryptedPacketLength - 1) printf(", ");
+				// Packet Switch
+				switch(packetOpcode)
+				{
+					// Prevent Hacking Attempts
+					case OPCODE_KEY_EXCHANGE_REQUEST:
+					printf("0x%02X packets need a body!\n", packetOpcode);
+					return false;
+
+					// Ping Packet
+					case OPCODE_PING:
+					printf("Received Ping!\n");
+					this->lastHeartbeat = time(NULL);
+					break;
+
+					// Unknown Packet Opcode
+					default:
+					printf("Unknown packet opcode 0x%02X!\n", packetOpcode);
+					return false;
+				}
 			}
-			printf("\n");
 
 			// Discard Data
-			MoveRXPointer((sizeof(uint16_t) + packetLength) * (-1));
+			MoveRXPointer((sizeof(uint16_t) * 2 + packetLength) * (-1));
 		}
 
 		// Not enough Data available
