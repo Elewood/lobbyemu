@@ -137,7 +137,7 @@ int Crypto::Decrypt(const uint8_t * payload, uint32_t payload_length, uint8_t * 
 	if (payload_length & 7) return 0;
 
 	// Output Buffer too small
-	if (*output < payload_length) return 0;
+	if (*output_length < payload_length) return 0;
 
 	// Copy Payload into Output Buffer
 	memcpy(output, payload, payload_length);
@@ -208,7 +208,7 @@ int Crypto::Encrypt(const uint8_t * payload, uint32_t payload_length, uint8_t * 
 	if (payload_length & 7) return 0;
 
 	// Output Buffer too small
-	if (*output < payload_length) return 0;
+	if (*output_length < payload_length) return 0;
 
 	// Copy Payload into Output Buffer
 	memcpy(output, payload, payload_length);
