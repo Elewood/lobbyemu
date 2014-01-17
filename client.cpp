@@ -17,9 +17,8 @@ Client::Client(int socket)
 	this->rxBuffer = new uint8_t[this->rxBufferLength];
 
 	// Create Cryptography Objects
-	crypto = new Crypto((uint8_t *)"hackOnline", 10);
-	inCrypto = NULL;
-	outCrypto = NULL;
+	for(uint32_t i = 0; i < 4; i++) crypto[i] = NULL;
+	crypto[0] = new Crypto((uint8_t *)"hackOnline", 10);
 
 	// Initialize Timeout Ticker
 	this->lastHeartbeat = time(NULL);
@@ -31,7 +30,9 @@ Client::~Client()
 	delete[] this->rxBuffer;
 
 	// Free Cryptography Memory
-	delete crypto;
+	for(uint32_t i = 0; i < 4; i++)
+		if(crypto[i] != NULL)
+			delete crypto[i];
 
 	// Close Socket
 	close(this->socket);
@@ -113,7 +114,6 @@ bool Client::ProcessRXBuffer()
 			// Packet has a body
 			if(packetLength > 0)
 			{
-				/*
 				// Output Encrypted Data
 				printf("Encrypted Data: ");
 				for(int i = 0; i < packetLength; i++)
@@ -122,14 +122,41 @@ bool Client::ProcessRXBuffer()
 					if(i != packetLength - 1) printf(", ");
 				}
 				printf("\n");
-				*/
 
 				// Decrypt Data
 				uint8_t decryptedPacket[0x40C];
 				uint32_t decryptedPacketLength = sizeof(decryptedPacket);
-				crypto->Decrypt(encryptedPacket, packetLength, decryptedPacket, &decryptedPacketLength);
+				Crypto * packetCrypto = NULL;
+				switch (packetOpcode)
+				{
+					case OPCODE_LOGIN:
+						// Key Exchange Request Key
+						packetCrypto = crypto[1];
+						break;
+					default:
+						// "hackOnline" Key
+						packetCrypto = crypto[0];
+				}
+				packetCrypto->Decrypt(encryptedPacket, packetLength, decryptedPacket, &decryptedPacketLength);
 
-				/*
+				// Accumulate Block Header Lengths to generate alternative Packet Length
+				uint32_t realDecryptedPacketLength = sizeof(uint16_t);
+				while((realDecryptedPacketLength + sizeof(uint16_t)) <= decryptedPacketLength)
+				{
+					// Read Block Length
+					uint16_t blockLength = ntohs(*(uint16_t *)(decryptedPacket + realDecryptedPacketLength));
+
+					// Block seems available
+					if(blockLength > 0 && (realDecryptedPacketLength + sizeof(uint16_t) + blockLength) <= decryptedPacketLength)
+					{
+						// Accumulate Size
+						realDecryptedPacketLength += sizeof(uint16_t) + blockLength;
+					}
+
+					// End of Packet
+					else break;
+				}
+
 				// Output Decrypted Data
 				printf("Decrypted Data: ");
 				for(uint32_t i = 0; i < decryptedPacketLength; i++)
@@ -138,7 +165,6 @@ bool Client::ProcessRXBuffer()
 					if(i != decryptedPacketLength - 1) printf(", ");
 				}
 				printf("\n");
-				*/
 
 				// Invalid Packet Length (body is never < 3)
 				if(decryptedPacketLength < 3)
@@ -151,14 +177,24 @@ bool Client::ProcessRXBuffer()
 				uint16_t packetChecksum = ntohs(*(uint16_t *)decryptedPacket);
 
 				// Calculate Checksum
-				uint16_t calculatedPacketChecksum = crypto->Checksum(decryptedPacket + sizeof(uint16_t), decryptedPacketLength - sizeof(uint16_t));
+				uint16_t calculatedPacketChecksum = packetCrypto->Checksum(decryptedPacket + sizeof(uint16_t), decryptedPacketLength - sizeof(uint16_t));
 
 				// Invalid Packet Checksum
 				if(packetChecksum != calculatedPacketChecksum)
 				{
-					printf("Received packet failed the checksum test (0x%02X != 0x%02X)!\n", packetChecksum, calculatedPacketChecksum);
-					return false;
+					// Attempt Calculating Checksum without Blowfish Trailing Garbage
+					calculatedPacketChecksum = packetCrypto->Checksum(decryptedPacket + sizeof(uint16_t), realDecryptedPacketLength - sizeof(uint16_t));
+
+					// Packet Checksum still invalid
+					if(packetChecksum != calculatedPacketChecksum)
+					{
+						printf("Received packet failed the checksum test (0x%02X != 0x%02X)!\n", packetChecksum, calculatedPacketChecksum);
+						return false;
+					}
 				}
+
+				// Use Block Header Length Data from here on out
+				decryptedPacketLength = realDecryptedPacketLength;
 
 				// Packet Switch
 				switch(packetOpcode)
@@ -178,7 +214,7 @@ bool Client::ProcessRXBuffer()
 						uint8_t * key = decryptedPacket + sizeof(uint16_t) * 2;
 						
 						// Key Length out of bounds
-						if(keyLength == 0 || keyLength >= decryptedPacketLength - (sizeof(uint16_t) * 2))
+						if(keyLength == 0 || keyLength > decryptedPacketLength - (sizeof(uint16_t) * 2))
 						{
 							printf("Received key length (%u > %lu) exceeds the packet boundaries!\n", keyLength, decryptedPacketLength - sizeof(uint16_t) * 2);
 							return false;
@@ -192,10 +228,10 @@ bool Client::ProcessRXBuffer()
 						}
 						
 						// Create Cryptography Objects
-						inCrypto = new Crypto(key, keyLength);
+						crypto[1] = new Crypto(key, keyLength);
 						uint8_t randKey[16];
 						for(uint32_t i = 0; i < sizeof(randKey); i++) randKey[i] = rand() % 256;
-						outCrypto = new Crypto(randKey, sizeof(randKey));
+						crypto[2] = new Crypto(randKey, sizeof(randKey));
 						
 						// Allocate Response Buffer
 						uint8_t response[52];
@@ -222,17 +258,71 @@ bool Client::ProcessRXBuffer()
 						memcpy(keyField2, randKey, sizeof(randKey));
 						
 						// Calculate Checksum
-						*checksumField = htons(crypto->Checksum((uint8_t *)&checksumField[1], sizeof(decryptedResponse) - sizeof(*checksumField)));
+						*checksumField = htons(packetCrypto->Checksum((uint8_t *)&checksumField[1], sizeof(decryptedResponse) - sizeof(*checksumField)));
 						
 						// Encrypt Response
 						uint32_t packetPayloadFieldSize = sizeof(response) - sizeof(*packetLengthField) - sizeof(*packetOpcodeField);
-						crypto->Encrypt(decryptedResponse, sizeof(decryptedResponse), packetPayloadField, &packetPayloadFieldSize);
+						packetCrypto->Encrypt(decryptedResponse, sizeof(decryptedResponse), packetPayloadField, &packetPayloadFieldSize);
 						
 						// Send Response
 						send(socket, response, sizeof(response), 0);
 
 						// Log Event
 						printf("Key Exchange finished!\n");
+
+						// Break Switch
+						break;
+					}
+
+					// Network Key Change Request
+					case OPCODE_SET_NETWORK_KEY:
+					{
+                                                // Read Key Length from Packet
+                                                uint16_t keyLength = ntohs(*(uint16_t *)(decryptedPacket + sizeof(uint16_t)));
+
+                                                // Read Key from Packet
+                                                uint8_t * key = decryptedPacket + sizeof(uint16_t) * 2;
+
+                                                // Key Length out of bounds
+                                                if(keyLength == 0 || keyLength > decryptedPacketLength - (sizeof(uint16_t) * 2))
+                                                {
+                                                        printf("Received key length (%u > %lu) exceeds the packet boundaries!\n", keyLength, decryptedPacketLength - sizeof(uint16_t) * 2);
+                                                        return false;
+                                                }
+
+                                                // Key Length over maximum allowed length
+                                                if(keyLength > 16)
+                                                {
+                                                        printf("Received key length exceeds the allowed maximum key length (%u > 16)\n", keyLength);
+                                                        return false;
+                                                }
+
+                                                // Create Cryptography Object
+                                                crypto[3] = new Crypto(key, keyLength);
+
+						// Debug Output
+						printf("Network Key has been changed!\n");
+
+						// Break Switch
+						break;
+					}
+
+					// Login Request
+					case OPCODE_LOGIN:
+					{
+						// Log Event
+						printf("Received Login Packet!\n");
+
+						uint8_t testbuffer[32];
+						uint32_t testbufferlen = sizeof(testbuffer) / 2;
+						crypto[1]->Decrypt(decryptedPacket + 4, 16, testbuffer + 16, &testbufferlen);
+						crypto[2]->Decrypt(testbuffer + 16, 16, testbuffer, &testbufferlen);
+						for(uint32_t i = 0; i < testbufferlen; i++)
+						{
+							printf("0x%02X", testbuffer[i]);
+							if(i != testbufferlen - 1) printf(", ");
+						}
+						printf("\n");
 
 						// Break Switch
 						break;

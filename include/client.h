@@ -13,9 +13,7 @@ class Client
 	int socket;
 
 	// Cryptography Handler
-	Crypto * crypto;
-	Crypto * inCrypto;
-	Crypto * outCrypto;
+	Crypto * crypto[4];
 
 	// RX Buffer Length
 	int rxBufferLength;
