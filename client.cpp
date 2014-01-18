@@ -2,6 +2,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
 #include <stdlib.h>
 #include "opcode.h"
 #include "client.h"
@@ -216,7 +217,7 @@ bool Client::ProcessRXBuffer()
 						// Key Length out of bounds
 						if(keyLength == 0 || keyLength > decryptedPacketLength - (sizeof(uint16_t) * 2))
 						{
-							printf("Received key length (%u > %lu) exceeds the packet boundaries!\n", keyLength, decryptedPacketLength - sizeof(uint16_t) * 2);
+							printf("Received key length (%u > %u) exceeds the packet boundaries!\n", keyLength, decryptedPacketLength - sizeof(uint16_t) * 2);
 							return false;
 						}
 						
@@ -277,28 +278,28 @@ bool Client::ProcessRXBuffer()
 					// Network Key Change Request
 					case OPCODE_SET_NETWORK_KEY:
 					{
-                                                // Read Key Length from Packet
-                                                uint16_t keyLength = ntohs(*(uint16_t *)(decryptedPacket + sizeof(uint16_t)));
+						// Read Key Length from Packet
+						uint16_t keyLength = ntohs(*(uint16_t *)(decryptedPacket + sizeof(uint16_t)));
 
-                                                // Read Key from Packet
-                                                uint8_t * key = decryptedPacket + sizeof(uint16_t) * 2;
+						// Read Key from Packet
+						uint8_t * key = decryptedPacket + sizeof(uint16_t) * 2;
 
-                                                // Key Length out of bounds
-                                                if(keyLength == 0 || keyLength > decryptedPacketLength - (sizeof(uint16_t) * 2))
-                                                {
-                                                        printf("Received key length (%u > %lu) exceeds the packet boundaries!\n", keyLength, decryptedPacketLength - sizeof(uint16_t) * 2);
-                                                        return false;
-                                                }
+						// Key Length out of bounds
+						if(keyLength == 0 || keyLength > decryptedPacketLength - (sizeof(uint16_t) * 2))
+						{
+								printf("Received key length (%u > %u) exceeds the packet boundaries!\n", keyLength, decryptedPacketLength - sizeof(uint16_t) * 2);
+								return false;
+						}
 
-                                                // Key Length over maximum allowed length
-                                                if(keyLength > 16)
-                                                {
-                                                        printf("Received key length exceeds the allowed maximum key length (%u > 16)\n", keyLength);
-                                                        return false;
-                                                }
+						// Key Length over maximum allowed length
+						if(keyLength > 16)
+						{
+								printf("Received key length exceeds the allowed maximum key length (%u > 16)\n", keyLength);
+								return false;
+						}
 
-                                                // Create Cryptography Object
-                                                crypto[3] = new Crypto(key, keyLength);
+						// Create Cryptography Object
+						crypto[3] = new Crypto(key, keyLength);
 
 						// Debug Output
 						printf("Network Key has been changed!\n");
