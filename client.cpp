@@ -217,7 +217,7 @@ bool Client::ProcessRXBuffer()
 						// Key Length out of bounds
 						if(keyLength == 0 || keyLength > decryptedPacketLength - (sizeof(uint16_t) * 2))
 						{
-							printf("Received key length (%u > %u) exceeds the packet boundaries!\n", keyLength, decryptedPacketLength - sizeof(uint16_t) * 2);
+							printf("Received key length (%u > %u) exceeds the packet boundaries!\n", keyLength, (uint32_t)(decryptedPacketLength - sizeof(uint16_t) * 2));
 							return false;
 						}
 						
@@ -287,7 +287,7 @@ bool Client::ProcessRXBuffer()
 						// Key Length out of bounds
 						if(keyLength == 0 || keyLength > decryptedPacketLength - (sizeof(uint16_t) * 2))
 						{
-								printf("Received key length (%u > %u) exceeds the packet boundaries!\n", keyLength, decryptedPacketLength - sizeof(uint16_t) * 2);
+								printf("Received key length (%u > %u) exceeds the packet boundaries!\n", keyLength, (uint32_t)(decryptedPacketLength - sizeof(uint16_t) * 2));
 								return false;
 						}
 
