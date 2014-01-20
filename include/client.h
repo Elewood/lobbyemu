@@ -5,6 +5,10 @@
 #include <time.h>
 #include "crypto.h"
 
+#define KEY_DEFAULT 0
+#define KEY_CLIENT 1
+#define KEY_SERVER 2
+
 class Client
 {
 	private:

@@ -18,6 +18,7 @@ Crypto::Crypto(uint8_t * key, uint32_t keyLen)
 void Crypto::PrepareStructure(uint8_t * key, uint32_t keyLen)
 {
 	// Allocate Memory
+	secretKey = new uint8_t[keyLen];
 	sBoxes = new uint32_t*[4];
 	pArray = new uint32_t[18];
 	for(uint32_t i = 0; i < 4; i++)
@@ -26,6 +27,8 @@ void Crypto::PrepareStructure(uint8_t * key, uint32_t keyLen)
 	}
 
 	// Initialize Fields
+	memcpy(secretKey, key, keyLen);
+	secretKeyLength = keyLen;
 	memcpy((void *)sBoxes[0], &default_sboxes[0], sizeof(default_sboxes) / 4);
 	memcpy((void *)sBoxes[1], &default_sboxes[256], sizeof(default_sboxes) / 4);
 	memcpy((void *)sBoxes[2], &default_sboxes[512], sizeof(default_sboxes) / 4);
@@ -126,6 +129,19 @@ Crypto::~Crypto()
 		delete[] sBoxes[i];
 	}
 	delete[] sBoxes;
+	delete[] secretKey;
+}
+
+uint32_t Crypto::GetKeyLength()
+{
+	// Return Secret Key Length
+	return secretKeyLength;
+}
+
+uint8_t * Crypto::GetKey()
+{
+	// Return Secret Key
+	return secretKey;
 }
 
 int Crypto::Decrypt(const uint8_t * payload, uint32_t payload_length, uint8_t * output, uint32_t * output_length)

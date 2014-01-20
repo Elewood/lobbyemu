@@ -130,13 +130,15 @@ bool Client::ProcessRXBuffer()
 				Crypto * packetCrypto = NULL;
 				switch (packetOpcode)
 				{
-					case OPCODE_LOGIN:
-						// Key Exchange Request Key
-						packetCrypto = crypto[1];
+					case OPCODE_KEY_EXCHANGE_REQUEST:
+					case OPCODE_KEY_EXCHANGE_RESPONSE:
+					case OPCODE_KEY_EXCHANGE_ACKNOWLEDGMENT:
+						// "hackOnline" Key
+						packetCrypto = crypto[KEY_DEFAULT];
 						break;
 					default:
-						// "hackOnline" Key
-						packetCrypto = crypto[0];
+						// Custom Key
+						packetCrypto = crypto[KEY_CLIENT];
 				}
 				packetCrypto->Decrypt(encryptedPacket, packetLength, decryptedPacket, &decryptedPacketLength);
 
@@ -167,8 +169,8 @@ bool Client::ProcessRXBuffer()
 				}
 				printf("\n");
 
-				// Invalid Packet Length (body is never < 3)
-				if(decryptedPacketLength < 3)
+				// Invalid Packet Length (body is never < 4)
+				if(decryptedPacketLength < 4)
 				{
 					printf("Received packet with an invalid body length of %u bytes!\n", decryptedPacketLength);
 					return false;
@@ -178,13 +180,16 @@ bool Client::ProcessRXBuffer()
 				uint16_t packetChecksum = ntohs(*(uint16_t *)decryptedPacket);
 
 				// Calculate Checksum
-				uint16_t calculatedPacketChecksum = packetCrypto->Checksum(decryptedPacket + sizeof(uint16_t), decryptedPacketLength - sizeof(uint16_t));
+				uint16_t calculatedPacketChecksum = Crypto::Checksum(decryptedPacket + sizeof(uint16_t), decryptedPacketLength - sizeof(uint16_t));
 
 				// Invalid Packet Checksum
 				if(packetChecksum != calculatedPacketChecksum)
 				{
+					// Log 1st Stage Failure
+					printf("Received packet failed the first stage checksum test (0x%02X != 0x%02X)!\n", packetChecksum, calculatedPacketChecksum);
+
 					// Attempt Calculating Checksum without Blowfish Trailing Garbage
-					calculatedPacketChecksum = packetCrypto->Checksum(decryptedPacket + sizeof(uint16_t), realDecryptedPacketLength - sizeof(uint16_t));
+					calculatedPacketChecksum = Crypto::Checksum(decryptedPacket + sizeof(uint16_t), realDecryptedPacketLength - sizeof(uint16_t));
 
 					// Packet Checksum still invalid
 					if(packetChecksum != calculatedPacketChecksum)
@@ -224,7 +229,7 @@ bool Client::ProcessRXBuffer()
 						// Key Length over maximum allowed length
 						if(keyLength > 16)
 						{
-							printf("Received key length exceeds the allowed maximum key length (%u > 16)\n", keyLength);
+							printf("Received key length exceeds the allowed maximum key length (%u > 16)!\n", keyLength);
 							return false;
 						}
 						
@@ -234,6 +239,16 @@ bool Client::ProcessRXBuffer()
 						for(uint32_t i = 0; i < sizeof(randKey); i++) randKey[i] = rand() % 256;
 						crypto[2] = new Crypto(randKey, sizeof(randKey));
 						
+
+						// Output Random Key
+						printf("Generated Random Key:\n");
+						for(uint32_t i = 0; i < sizeof(randKey); i++)
+						{
+							printf("0x%02X", randKey[i]);
+							if(i != sizeof(randKey) - 1) printf(", ");
+						}
+						printf("\n");
+
 						// Allocate Response Buffer
 						uint8_t response[52];
 						uint8_t decryptedResponse[48];
@@ -259,7 +274,7 @@ bool Client::ProcessRXBuffer()
 						memcpy(keyField2, randKey, sizeof(randKey));
 						
 						// Calculate Checksum
-						*checksumField = htons(packetCrypto->Checksum((uint8_t *)&checksumField[1], sizeof(decryptedResponse) - sizeof(*checksumField)));
+						*checksumField = htons(Crypto::Checksum((uint8_t *)&checksumField[1], sizeof(decryptedResponse) - sizeof(*checksumField)));
 						
 						// Encrypt Response
 						uint32_t packetPayloadFieldSize = sizeof(response) - sizeof(*packetLengthField) - sizeof(*packetOpcodeField);
@@ -276,8 +291,15 @@ bool Client::ProcessRXBuffer()
 					}
 
 					// Network Key Change Request
-					case OPCODE_SET_NETWORK_KEY:
+					case OPCODE_KEY_EXCHANGE_ACKNOWLEDGMENT:
 					{
+						// Server Key isn't set yet
+						if(crypto[2] == NULL)
+						{
+							printf("There is no server key to check the acknowledgment against!\n");
+							return false;
+						}
+
 						// Read Key Length from Packet
 						uint16_t keyLength = ntohs(*(uint16_t *)(decryptedPacket + sizeof(uint16_t)));
 
@@ -294,15 +316,26 @@ bool Client::ProcessRXBuffer()
 						// Key Length over maximum allowed length
 						if(keyLength > 16)
 						{
-								printf("Received key length exceeds the allowed maximum key length (%u > 16)\n", keyLength);
+								printf("Received key length exceeds the allowed maximum key length (%u > 16)!\n", keyLength);
 								return false;
 						}
 
-						// Create Cryptography Object
-						crypto[3] = new Crypto(key, keyLength);
+						// Key Lengths don't match
+						if(crypto[2]->GetKeyLength() != keyLength)
+						{
+							printf("The server and acknowledgment key lengths don't match!\n");
+							return false;
+						}
+
+						// Keys don't match
+						if(memcmp(crypto[2]->GetKey(), key, keyLength) != 0)
+						{
+							printf("The server and acknowledgment keys don't match!\n");
+							return false;
+						}
 
 						// Debug Output
-						printf("Network Key has been changed!\n");
+						printf("Key Exchange Acknowledgment was successful!\n");
 
 						// Break Switch
 						break;

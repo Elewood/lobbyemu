@@ -7,6 +7,12 @@ class Crypto
 {
 	private:
 
+	// Blowfish Secret Key
+	uint8_t * secretKey;
+
+	// Blowfish Secret Key Length
+	uint32_t secretKeyLength;
+
 	// Blowfish S-Boxes
 	uint32_t ** sBoxes;
 	
@@ -33,6 +39,12 @@ class Crypto
 	// Destructor
 	~Crypto();
 	
+	// Get Blowfish Secret Key Length
+	uint32_t GetKeyLength();
+
+	// Get Blowfish Secret Key
+	uint8_t * GetKey();
+
 	// Decrypts Data using Blowfish
 	int Decrypt(const uint8_t * payload, uint32_t payload_length, uint8_t * output, uint32_t * output_length);
 
@@ -40,7 +52,7 @@ class Crypto
 	int Encrypt(const uint8_t * payload, uint32_t payload_length, uint8_t * output, uint32_t * output_length);
 
 	// Checksum Generator
-	uint16_t Checksum(const uint8_t * payload, uint32_t payload_length);
+	static uint16_t Checksum(const uint8_t * payload, uint32_t payload_length);
 };
 
 #endif
