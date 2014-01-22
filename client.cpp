@@ -388,6 +388,9 @@ bool Client::ProcessRXBuffer()
 				{
 					// Prevent Hacking Attempts
 					case OPCODE_KEY_EXCHANGE_REQUEST:
+					case OPCODE_KEY_EXCHANGE_RESPONSE:
+					case OPCODE_KEY_EXCHANGE_ACKNOWLEDGMENT:
+					case OPCODE_DATA:
 					printf("0x%02X packets need a body!\n", packetOpcode);
 					return false;
 
