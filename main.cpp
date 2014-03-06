@@ -4,11 +4,49 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
 #include "server.h"
 #include "error.h"
+
+/*
+CONSOLE COLORS:
+0 = gray
+30 = black
+31 = red
+32 = green
+33 = brown
+34 = blue
+35 = magenta
+36 = cyan
+37 = light gray
+
+
+modifiers, use ; to cat them!
+1 = bold text
+
+40 = black bg
+41 = red background
+42 = green background
+43 = brown bg
+44 = blue bg
+45 = magenta bg
+46 = cyan bg
+47 = white bg
+
+0 resets all to defaults
+1 set bold
+5 set blink
+7 reverse video
+22 normal intensity
+25 blink off
+27 reverse video off
+
+*/
+
+
 
 // Server Status
 int _status = 0;
@@ -136,7 +174,19 @@ int create_listen_socket(uint16_t port)
 		{
 			// Switch Socket into Listening Mode
 			listen(fd, 10);
-
+			
+			
+			int kOpt = 1;
+			int kAI = 1;
+			int kCnt = 100;
+			int kI = 1;
+			
+			
+//			setsockopt(fd, SOL_SOCKET,SO_KEEPALIVE, &kOpt, sizeof(int));
+	//		setsockopt(fd, SOL_TCP,TCP_KEEPINTVL, &kAI, sizeof(int));
+//			setsockopt(fd, SOL_TCP, TCP_KEEPCNT, &kCnt, sizeof(int));
+//			setsockopt(fd, SOL_TCP, TCP_KEEPIDLE, &kI, sizeof(int));
+			
 			// Return Socket
 			return fd;
 		}
@@ -191,7 +241,7 @@ int server_loop(int server)
 					change_blocking_mode(acceptResult, 1);
 
 					// Output Information
-					printf("Accepted Client into Server!\n");
+					printf("\033[32mAccepted Client into Server!\033[0m\n");
 
 					// Add Connection to Client List
 					Server::getInstance()->GetClientList()->push_back(new Client(acceptResult));
@@ -211,8 +261,21 @@ int server_loop(int server)
 			// Receive Data into Networking Buffer
 			int recvResult = recv(client->GetSocket(), client->GetRXBuffer(true), client->GetFreeRXBufferSize(), 0);
 
+			if(client->IsTimedOut())
+			{
+				clients->erase(it++);
+				
+				delete client;
+				
+				printf("\033[31mClient Connection Timed Out!");				
+				
+				continue;
+			}
+
+
+
 			// Connection was closed or timed out
-			if(recvResult == 0 || (recvResult == -1 && errno != EAGAIN && errno != EWOULDBLOCK) || client->IsTimedOut())
+			if(recvResult == 0 || (recvResult == -1 && errno != EAGAIN && errno != EWOULDBLOCK))
 			{
 				// Remove User from List
 				clients->erase(it++);
@@ -221,7 +284,7 @@ int server_loop(int server)
 				delete client;
 
 				// Output Information
-				printf("Closed Connection to Client!\n");
+				printf("\033[31;5mClosed Connection to Client!\033[0m\n");
 
 				// Continue Iterator
 				continue;
@@ -270,4 +333,3 @@ int server_loop(int server)
 	// Return Error Code
 	return ERROR_OK;
 }
-

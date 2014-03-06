@@ -7,4 +7,89 @@
 #define OPCODE_KEY_EXCHANGE_RESPONSE 0x35
 #define OPCODE_KEY_EXCHANGE_ACKNOWLEDGMENT 0x36
 
+
+
+
+//MISC_DEFINES
+#define CLIENTTYPE_GAME		    0x7430
+#define CLIENTTYPE_AREASERVER		0x7431
+
+
+//Packet 0x30 subOpcode Defines
+//The area server likes to ping in a DATA packet...
+#define OPCODE_DATA_PING			 0x02
+
+//Nice to know.
+#define OPCODE_DATA_SERVERKEY_CHANGE 0x31
+
+//Not sure that's actually what this does.
+#define OPCODE_DATA_PING2 			0x40
+#define OPCODE_DATA_PONG2 			0x41
+
+
+#define OPCODE_DATA_LOGON_REPEAT	0x7000
+#define OPCODE_DATA_LOGON_RESPONSE  0x7001
+
+//Why?
+#define OPCODE_DATA_LOGON_AS2	   	0x7019
+//Doesn't work
+#define OPCODE_DATA_LOGON_AS2_RESPONSE 0x701A
+
+#define OPCODE_DATA_DISKID		   0x7423
+#define OPCODE_DATA_DISKID_OK		0x7424
+#define OPCODE_DATA_DISKID_BAD	   0x7425
+
+#define OPCODE_DATA_SAVEID		   0x7426
+#define OPCODE_DATA_SAVEID_OK	    0x7427
+//#define OPCODE_DATA_SAVEGAME_BAD	 0x7428
+	//replies back with 0x7429, with no argument.
+
+
+#define OPCODE_DATA_REGISTER_CHAR	 0x742B
+#define OPCODE_DATA_REGISTER_CHAROK   0x742C
+
+#define OPCODE_DATA_UNREGISTER_CHAR   0x7432
+#define OPCODE_DATA_UNREGISTER_CHAROK 0x7433
+
+
+
+#define OPCODE_DATA_NEWS_GETMENU     	0x784e
+#define OPCODE_DATA_NEWS_GETMENU_OK  	0x784f
+#define OPCODE_DATA_NEWS_GETMENU_FAILED  0x7850
+//7853 - ok/no data
+//7852 - ok/wants more data?
+//7851 - ok/no data?
+//7850 - failed
+//784f - ok
+
+
+#define OPCODE_DATA_MAIL_GET        0x7803
+#define OPCODE_DATA_MAIL_GETOK     0x7804
+
+
+//These happen upon entering ALTIMIT DESKTOP
+#define OPCODE_DATA_NEWCHECK			 0x7867
+#define OPCODE_DATA_NEWCHECK_OK		  0x7868
+#define OPCODE_DATA_NEWCHECK_FAIL		0x7869
+//
+#define OPCODE_DATA_MAILCHECK			0x786D
+#define OPCODE_DATA_MAILCHECK_OK		 0x786e
+//
+
+#define OPCODE_DATA_COM			  0x7876
+#define OPCODE_DATA_COM_OK		   0x7877
+
+#define OPCODE_DATA_SELECT_CHAR	   0x789f
+#define OPCODE_DATA_SELECT_CHAROK	 0x78a0
+
+
+#define OPCODE_DATA_SELECT2_CHAR	  0x78a2
+#define OPCODE_DATA_SELECT2_CHAROK	0x78a3
+
+
+
+#define OPCODE_DATA_LOGON		   	 0x78AB
+//Area server doesn't like 0x7001
+#define OPCODE_DATA_LOGON_RESPONSE_AS	0x78ad
+
 #endif
