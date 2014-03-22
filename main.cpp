@@ -5,11 +5,18 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <arpa/inet.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
 #include "server.h"
 #include "error.h"
+//#include "sqlite3.h"
+#include <iostream>
+#include <areaServer.h>
+#include <list>
+
+const char * MOTD = "&&&&&Welcome to\n .hack//Fragment!\n\nCurrent Status:\nMail System:Down\nNews System:Down\nLobby System:BASIC\nBBS System:Down\nRanking System:Down\nGuild System:Down\n\nThank you,\n-Project Fragment Team";
 
 /*
 CONSOLE COLORS:
@@ -58,6 +65,14 @@ void change_blocking_mode(int fd, int nonblocking);
 int create_listen_socket(uint16_t port);
 int server_loop(int server);
 
+//I'm developing on android, and had sqlite3 on hand.
+//sqlite3 *srvDatabase;
+
+//I know...
+std::list<AreaServer *> * areaServers;
+
+
+
 /**
  * Entry Point
  * @param argc Number of Arguments
@@ -76,12 +91,52 @@ int main(int argc, char * argv[])
 	// Create Listening Socket
 	int server = create_listen_socket(49000);
 
+
+/*
+	int dbRes = sqlite3_open("lobbyServer.db", &srvDatabase);
+	if(dbRes != SQLITE_OK)
+	{
+		printf("ERROR OPENING DB");
+		return dbRes;
+	}
+
+	sqlite3_stmt *statement;
+	if(sqlite3_prepare(srvDatabase,"SELECT name FROM LOBBIES;", -1,&statement, 0) == SQLITE_OK)
+	{
+		int cols = sqlite3_column_count(statement);
+		int result = 0;
+		while(true)
+		{
+			result = sqlite3_step(statement);
+			
+			if(result == SQLITE_ROW)
+			{
+//				vector<string> values;
+				for(int col = 0; col < cols; col++)
+				{
+					printf("\tDBLOBBIES: %s\n",(char*)sqlite3_column_text(statement,col));
+					//values.push_back((char*)sqlite3_column_text(statement,col));
+				}
+				
+			}
+			else
+			{
+				break;
+			}
+		}
+		sqlite3_finalize(statement);
+	}
+*/
+
 	// Created Listening Socket
 	if(server != -1)
 	{
 		// Notify User
 		printf("Listening for Connections on TCP Port 49000.\n");
 
+		//Dunno where else to put this... Just needs to work... for now...
+		areaServers = new std::list<AreaServer *>();
+		
 		// Enter Server Loop
 		errorCode = server_loop(server);
 
@@ -215,6 +270,7 @@ int server_loop(int server)
 	// Set Running Status
 	_status = 1;
 
+	std::string inp;
 	// Handling Loop
 	while(_status == 1)
 	{
@@ -226,6 +282,8 @@ int server_loop(int server)
 			// Accept Connections
 			do
 			{
+				
+
 				// Prepare Address Structure
 				struct sockaddr_in addr;
 				socklen_t addrlen = sizeof(addr);
@@ -241,10 +299,10 @@ int server_loop(int server)
 					change_blocking_mode(acceptResult, 1);
 
 					// Output Information
-					printf("\033[32mAccepted Client into Server!\033[0m\n");
+					printf("\033[32mAccepted Client into Server! - IP:%s\033[0m\n",inet_ntoa(addr.sin_addr));
 
 					// Add Connection to Client List
-					Server::getInstance()->GetClientList()->push_back(new Client(acceptResult));
+					Server::getInstance()->GetClientList()->push_back(new Client(acceptResult,addr.sin_addr.s_addr));
 				}
 			} while(acceptResult != -1);
 		}
@@ -261,22 +319,29 @@ int server_loop(int server)
 			// Receive Data into Networking Buffer
 			int recvResult = recv(client->GetSocket(), client->GetRXBuffer(true), client->GetFreeRXBufferSize(), 0);
 
-			if(client->IsTimedOut())
-			{
-				clients->erase(it++);
-				
-				delete client;
-				
-				printf("\033[31mClient Connection Timed Out!");				
-				
-				continue;
-			}
-
-
-
 			// Connection was closed or timed out
-			if(recvResult == 0 || (recvResult == -1 && errno != EAGAIN && errno != EWOULDBLOCK))
+			if(recvResult == 0 || (recvResult == -1 && errno != EAGAIN && errno != EWOULDBLOCK || client->IsTimedOut()))
 			{
+
+				//check to see if the client is an area server...
+				for(std::list<AreaServer *>::iterator asi = areaServers->begin();asi != areaServers->end();)
+				{
+					AreaServer* as = *asi;
+					if(as->socket == client->GetSocket())
+					{
+						//remove it from the list...
+						areaServers->erase(asi++);
+						
+						delete as;
+						printf("REMOVED AREA SERVER FROM LIST!\n");
+						continue;
+					}					
+					
+					asi++;
+				}
+
+
+				
 				// Remove User from List
 				clients->erase(it++);
 

@@ -10,6 +10,69 @@
 
 
 
+//lobby defines...
+
+//0x30_0x7862
+
+
+/*
+struct packet0x30_0x7862
+{
+	uint16_t lobbyEventType
+	uint16_t unkStrLen
+	...
+}
+
+
+struct packet0x30_0x7862
+//when Event Type == 0x01
+//User enters.
+{
+	uint16_t lobbyEventType = 0x01;
+	uint16_t unkStrLen = 12; //0x0c
+	uint8_t  dataType;
+	char unkStr[unkStrLen]; //I'm not entirely sure this is even a string...
+	uint16_t dataLen;
+	char data[dataLen]; //it includes null terminator...
+}
+
+struct packet0x30_0x7862
+//when EventType == 0x02
+//Tell?
+{
+	uint16_t lobbyEventType = 0x02;
+	uint16_t unkStrLen = 12; //0x0c
+	char unkStr[unkStrLen]; //still not sure it's a string...
+	uint16_t dataLen;
+	char data[dataLen];	//it includes null terminator, this is what to tell the other user.
+}
+	
+//lobbyEventType = 0x01:
+//	User Enters.
+dataType 4 = userName
+dataType 5 = userGreeting
+
+
+//lobbyEventType = 0x02:
+//	Tell?
+
+
+
+*/
+
+
+
+
+#define LOBBY_USER_ENTER		0x01
+#define LOBBY_USER_TELL		 0x02
+
+
+
+//There's several packets that come in when a user enters,
+#define LOBBY_USER_ENTER_NAME   0x4
+#define LOBBY_USER_ENTER_GREETING 0x5
+
+
 //MISC_DEFINES
 #define CLIENTTYPE_GAME		    0x7430
 #define CLIENTTYPE_AREASERVER		0x7431
@@ -30,10 +93,19 @@
 #define OPCODE_DATA_LOGON_REPEAT	0x7000
 #define OPCODE_DATA_LOGON_RESPONSE  0x7001
 
+//check and see if there's new posts on the BBS?
+#define OPCODE_DATA_BBS_GET_UPDATES	0x786a
+
+
+
+#define OPCODE_DATA_LOBBY_ENTERROOM 0x7006
+#define OPCODE_DATA_LOBBY_ENTERROOM_OK 0x7007
+
+
 //Why?
 #define OPCODE_DATA_LOGON_AS2	   	0x7019
 //Doesn't work
-#define OPCODE_DATA_LOGON_AS2_RESPONSE 0x701A
+#define OPCODE_DATA_LOGON_AS2_RESPONSE 0x701d
 
 #define OPCODE_DATA_DISKID		   0x7423
 #define OPCODE_DATA_DISKID_OK		0x7424
@@ -45,26 +117,94 @@
 	//replies back with 0x7429, with no argument.
 
 
+#define OPCODE_DATA_LOBBY_EXITROOM	0x7444
+#define OPCODE_DATA_LOBBY_EXITROOM_OK 0x7445
+
 #define OPCODE_DATA_REGISTER_CHAR	 0x742B
 #define OPCODE_DATA_REGISTER_CHAROK   0x742C
 
 #define OPCODE_DATA_UNREGISTER_CHAR   0x7432
 #define OPCODE_DATA_UNREGISTER_CHAROK 0x7433
 
+#define OPCODE_DATA_RETURN_DESKTOP	0x744a
+#define OPCODE_DATA_RETURN_DESKTOP_OK 0x744b
 
 
-#define OPCODE_DATA_NEWS_GETMENU     	0x784e
-#define OPCODE_DATA_NEWS_GETMENU_OK  	0x784f
-#define OPCODE_DATA_NEWS_GETMENU_FAILED  0x7850
+//main lobby...
+#define OPCODE_DATA_LOBBY_GETMENU		0x7500
+#define OPCODE_DATA_LOBBY_CATEGORYLIST	 0x7501 // uint16_t numberOfCategories
+#define OPCODE_DATA_LOBBY_GETMENU_FAIL   0x7502 //Failed to get list
+#define OPCODE_DATA_LOBBY_ENTRY_CATEGORY    0x7503 //uint16_t categoryNum, char* categoryName
+#define OPCODE_DATA_LOBBY_LOBBYLIST	     0x7504 //uint16_t numberOfLobbies
+#define OPCODE_DATA_LOBBY_ENTRY_LOBBY	   0x7505 //uint16_t lobbyNum, char* lobbyName, uint32_t numUsers (?)
+
+
+//LOBBY_EVENT?
+#define OPCODE_DATA_LOBBY_EVENT			0x7862
+
+
+#define OPCODE_DATA_LOBBY_GETSERVERS     0x7841
+#define OPCODE_DATA_LOBBY_GETSERVERS_OK  0x7842
+
+//ANOTHER Tree
+#define OPCODE_DATA_LOBBY_GETSERVERS_GETLIST	0x7506	
+#define OPCODE_DATA_LOBBY_GETSERVERS_CATEGORYLIST  0x7507 //arg is # items?
+#define OPCODE_DATA_LOBBY_GETSERVERS_FAIL  0x7508   //FAILED
+#define OPCODE_DATA_LOBBY_GETSERVERS_ENTRY_CATEGORY  0x7509 //The DIRS
+#define OPCODE_DATA_LOBBY_GETSERVERS_SERVERLIST  0x750a //arg is # items?
+#define OPCODE_DATA_LOBBY_GETSERVERS_ENTRY_SERVER  0x750b //yay...
+
+
+#define OPCODE_DATA_LOBBY_GETSERVERS_EXIT 	  0x7844
+#define OPCODE_DATA_LOBBY_GETSERVERS_EXIT_OK	0x7845	
+
+#define OPCODE_DATA_NEWS_GETMENU     			0x784e
+#define OPCODE_DATA_NEWS_CATEGORYLIST    0x784f //arg is #of items in category list
+#define OPCODE_DATA_NEWS_GETMENU_FAILED  		0x7850 //Failed
+#define OPCODE_DATA_NEWS_ENTRY_CATEGORY	 0x7851 //Category list Entry
+#define OPCODE_DATA_NEWS_ARTICLELIST   	0x7852 //Article list, Arg is # entries
+#define OPCODE_DATA_NEWS_ENTRY_ARTICLE	  0x7853 //Article List Entry
 //7853 - ok/no data
 //7852 - ok/wants more data?
 //7851 - ok/no data?
 //7850 - failed
 //784f - ok
 
+#define OPCODE_DATA_NEWS_GETPOST		0x7854
+
+#define OPCODE_DATA_NEWS_SENDPOST	   0x7855
+//7856
+//7857
+//7855
+
 
 #define OPCODE_DATA_MAIL_GET        0x7803
 #define OPCODE_DATA_MAIL_GETOK     0x7804
+
+
+
+//BBS	POSTING	STUFF
+#define OPCODE_DATA_BBS_GETMENU		0x7848
+#define OPCODE_DATA_BBS_CATEGORYLIST   0x7849
+#define OPCODE_DATA_BBS_GETMENU_FAILED 0x784a
+#define OPCODE_DATA_BBS_ENTRY_CATEGORY 0x784b
+#define OPCODE_DATA_BBS_THREADLIST	 0x784c
+#define OPCODE_DATA_BBS_ENTRY_THREAD   0x784d	
+			//7849 threadCat
+			//784a error
+			//784b catEnrty
+			//784c threadList
+			//784d threadEnrty			
+			
+#define OPCODE_DATA_BBS_THREAD_GETMENU         0x7818
+#define OPCODE_DATA_BBS_THREAD_LIST			0x7819
+#define OPCODE_DATA_BBS_THREAD_GETMENU_FAILED  0x781a
+#define OPCODE_DATA_BBS_THREAD_ENTRY_POST	  0x781b
+//7819
+//781a
+//781b
+
+
 
 
 //These happen upon entering ALTIMIT DESKTOP
@@ -91,5 +231,147 @@
 #define OPCODE_DATA_LOGON		   	 0x78AB
 //Area server doesn't like 0x7001
 #define OPCODE_DATA_LOGON_RESPONSE_AS	0x78ad
+
+
+
+
+#define OPCODE_DATA_MAIL_SEND			0x7800
+/*
+	DATA_MAIL_SEND PACKET DESC
+	struct mailPacket
+	{
+		uint32_t unk1 = 0xFFFFFFFF
+		uint32_t date;
+		char * recipient;
+		uint32_t unk2;
+		uint16_t unk3;
+		char * sender;
+		char unk4;
+		char subject[0x80];
+		char text[0x47e];
+		
+		
+		
+		
+		
+		
+	}
+*/
+
+
+
+
+#define OPCODE_DATA_BBS_POST		0x7812
+/*
+	DATA_BBS_POST	PACKET	DESC
+	struct bbsPostPacket
+	{
+		uint32_t unk1 0x00000000
+		char userName[0x4c];
+		uint16_t unk2;
+		uint16_t dSize; //data size...
+		char title[0x32];		//message title
+		char body[0x25a]; //message body. 602 chars. 
+
+
+*/
+
+
+#define OPCODE_DATA_MAIL_SEND_OK		0x7801
+
+
+
+
+
+///////////////
+//AREA	SERVER	DEFINES:
+///////////////
+#define OPCODE_DATA_AS_DISKID		0x785b
+#define OPCODE_DATA_AS_DISKID_OK	 0x785c
+#define OPCODE_DATA_AS_DISKID_FAIL   0x785d
+
+#define OPCODE_DATA_AS_IPPORT		0x7013
+#define OPCODE_DATA_AS_IPPORT_OK	 0x7014
+
+#define OPCODE_DATA_AS_PUBLISH		0x78ae
+#define OPCODE_DATA_AS_PUBLISH_OK	 0x78af
+
+
+#define OPCODE_DATA_AS_PUBLISH_DETAILS1 	  0x7011
+#define OPCODE_DATA_AS_PUBLISH_DETAILS1_OK    0x7012
+//initial server details...
+/*
+	struct asPublishDetails1:
+	{
+		char diskID[65];
+		char * serverName; //this is variable length, but no longer than 21 I believe, including null terminator.
+		uint16_t serverLevel;
+		uint16_t serverType;	//serverType
+		uint16_t sUnk;	//I'm not sure what that's for yet.
+		uint8_t sStatus;		//serverStatus.
+		uint8_t serverID[8];
+		//We don't really need to worry about the server type or status. the game know's what's up.
+	}						
+*/
+
+
+
+#define OPCODE_DATA_AS_PUBLISH_DETAILS2	   0x7016
+#define OPCODE_DATA_AS_PUBLISH_DETAILS2_OK	0x7017
+//I'm still not sure what's up with this dude.
+
+
+#define OPCODE_DATA_AS_PUBLISH_DETAILS3	   0x7881
+#define OPCODE_DATA_AS_PUBLISH_DETAILS3_OK	0x7882
+
+#define OPCODE_DATA_AS_PUBLISH_DETAILS4	   0x7887
+#define OPCODE_DATA_AS_PUBLISH_DETAILS4_OK	0x7888
+
+#define OPCODE_DATA_AS_UPDATE_USERNUM	   0x741d //uint32_t numUsers
+#define OPCODE_DATA_AS_PUBLISH_DETAILS5_OK	0x741e
+//update user num?
+
+
+
+#define OPCODE_DATA_AS_PUBLISH_DETAILS6	   0x78a7
+#define OPCODE_DATA_AS_PUBLISH_DETAILS6_OK    0x78a8
+
+#define OPCODE_DATA_AS_UPDATE_STATUS	   0x780c
+#define OPCODE_DATA_AS_PUBLISH_DETAILS7_OK    0x780d
+/*
+	struct asUpdatStatus:
+	{
+		uint16_t unk1;		//NO idea what this is about...
+		char diskID[65];
+		char * serverName; //this is variable length, but no longer than 21 I believe, including null terminator.
+		uint16_t serverLevel;
+		uint16_t serverType;	//serverType
+		uint8_t sStatus;		//serverStatus.
+		uint8_t serverID[8];
+		//We don't really need to worry about the server type or status. the game know's what's up.
+	}						
+*/
+
+
+
+//:3
+#define OPCODE_DATA_AS_NAMEID		0x5778
+#define OPCODE_DATA_AS_DISKID2	   0x78a7 //again?
+
+/*
+7011 diskid,name,unk,unk,id#
+7016 uink
+7881 diskid,id#,unk
+7887 diskid,unk,name,id,unk
+741d null
+780c diskid,name,unk,unk,id#
+78a7 diskid
+
+	
+		
+*/	
+
+
+
 
 #endif

@@ -338,4 +338,3 @@ uint16_t Crypto::Checksum(const uint8_t * payload, uint32_t payload_length)
 	// Return Checksum
 	return checksum & 0xFFFF;
 }
-
