@@ -224,7 +224,7 @@ bool Client::sendPacket30(uint8_t * args, uint32_t aSize, uint16_t opcode)
 			
 	uint8_t* decryptedResponse = new uint8_t[decryptedResponseLen];
 	
-	for(int i = 0; i < decryptedResponseLen; i++) decryptedResponse[i] = 0x0;
+	for(uint32_t i = 0; i < decryptedResponseLen; i++) decryptedResponse[i] = 0x0;
 	
 	//cast fields for encrypted response...
 	uint16_t * packetLengthField = (uint16_t *)response;
@@ -254,7 +254,7 @@ bool Client::sendPacket30(uint8_t * args, uint32_t aSize, uint16_t opcode)
 	*checksumField = htons(Crypto::Checksum((uint8_t *)&checksumField[1], dataLen));
 
 	printf("Generated Packet with Checksum: \n");
-	for(int i = 0; i < decryptedResponseLen; i++)
+	for(uint32_t i = 0; i < decryptedResponseLen; i++)
 	{
 		printf("0x%02X",decryptedResponse[i]);
 		if(i != decryptedResponseLen - 1)
@@ -320,7 +320,7 @@ bool Client::sendPacket(uint8_t * packet, uint32_t packetSize,uint32_t opcode)
 	*checksumField = htons(Crypto::Checksum(packet,packetSize));
 
 	printf("Generated Packet With Checksum: \n");
-	for(int i = 0; i < decryptedResponseLen;i++)
+	for(uint32_t i = 0; i < decryptedResponseLen;i++)
 	{
 		printf("0x%02X",decryptedResponse[i]);
 		if(i != decryptedResponseLen - 1)
@@ -543,7 +543,7 @@ bool Client::sendNewsPost(uint16_t postID)
 {
 		uint8_t uRes[] = {0x00,0x00};
 		sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_NEWS_GETMENU_FAILED);
-	
+	return true;
 }
 
 
@@ -715,7 +715,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		
 		case OPCODE_DATA_AS_PUBLISH_DETAILS3:
 		{
-			uint8_t uRes[] = {0x00,0x00};
+			
 			printf("RECEIVED AREA SERVER PUBLISH3\n");
 
 			break;
@@ -723,7 +723,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 														
 		case OPCODE_DATA_AS_PUBLISH_DETAILS4:
 		{
-			uint8_t uRes[] = {0x00,0x01};
+			
 			printf("RECEIVED AREA SERVER PUBLISH4\n");
 
 			break;
@@ -739,7 +739,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		
 		case OPCODE_DATA_AS_PUBLISH_DETAILS6:
 		{
-			uint8_t uRes[] = {0x00,0x00};
+			
 			printf("RECEIVED AREA SERVER PUBLISH6\n");
 
 			break;
@@ -793,8 +793,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		
 		case OPCODE_DATA_COM:
 		{
-			uint8_t uRes[] = {0xde,0xad};//,0xad};
-			//snprintf((char*)uRes,33,"Welcome to .hack//Fragment!");
+			uint8_t uRes[] = {0xde,0xad};
 			printf("Sending COM_OK\n");
 			sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_COM_OK);
 			
@@ -855,7 +854,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		case OPCODE_DATA_SELECT2_CHAR:
 		{
 			printf("RECEIEVED DATA_SELECT2_CHAR\n");
-			uint8_t uRes[] = {0x00,0x00};
+			
 			printf("Sending SELECT2_CHAROK\n");
 			sendPacket30(arg,sizeof(arg),OPCODE_DATA_SELECT2_CHAROK);
 			break;
@@ -1062,8 +1061,8 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			sendPacket30(uRes,sizeof(uRes),0x700a);
 			
 //			uint8_t uRes2[] = {0x00,0x01,0x30,0x30,0x30,0x31,0x31,0x32,0x32,0x00,0x33,0x33,0x34,0x34,0x00,0x00,0x11,0x82,0x61,0x82,0x74,0x82,0x6b,0x82,0x71,0x82,0x6e,0x82,0x72,0x82,0x64,0x00};
-			uint8_t uRes2[] = {0x00,0x01,0x0c,0x04,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x11,0x82,0x61,0x82,0x74,0x82,0x6b,0x82,0x6a,0x82,0x71,0x82,0x6e,0x82,0x72,0x82,0x64};
-			printf("Trying to send some users...\n");
+			//uint8_t uRes2[] = {0x00,0x01,0x0c,0x04,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x11,0x82,0x61,0x82,0x74,0x82,0x6b,0x82,0x6a,0x82,0x71,0x82,0x6e,0x82,0x72,0x82,0x64};
+			//printf("Trying to send some users...\n");
 			//send userName...
 			//sendPacket30(uRes,sizeof(uRes),0x700a);
 //			sendPacket30(uRes2,sizeof(uRes2),0x700b);

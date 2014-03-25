@@ -1,7 +1,8 @@
 #include "areaServer.h"
 #include <string>
 #include <netinet/in.h>
-
+#include <cstring>
+#include <stdio.h>
 AreaServer::AreaServer()
 {
 	// init everything to 0?
@@ -29,7 +30,10 @@ AreaServer::AreaServer(int socket, uint32_t eIp, uint32_t lIp, uint32_t port, ch
 	this->serverUsers = 0;
 	this->serverLevel = level;	
 	this->serverType = sType;
-	printf("REGISTERING AREA SERVER: %s, ID:%08X, STATUS:%02X, LEVEL:%02X, USERS:%02X, TYPE: %02X\n",this->serverName,this->serverId,this->serverStatus,this->serverLevel,this->serverUsers, this->serverType);
+	printf("REGISTERING AREA SERVER: %s, ID:",this->serverName);
+	for(int i = 0; i < 8; i++) printf("%02X",this->serverId[i]);
+
+	printf(", STATUS:%02X, LEVEL:%02X, USERS:%02X, TYPE: %02X\n",this->serverStatus,this->serverLevel,this->serverUsers, this->serverType);
 	
 }	
 
@@ -99,5 +103,5 @@ bool AreaServer::GetServerLine(uint8_t * output,uint16_t outputLen, uint32_t cli
 
 
 
-	*/
+	
 }

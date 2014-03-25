@@ -230,13 +230,6 @@ int create_listen_socket(uint16_t port)
 			// Switch Socket into Listening Mode
 			listen(fd, 10);
 			
-			
-			int kOpt = 1;
-			int kAI = 1;
-			int kCnt = 100;
-			int kI = 1;
-			
-			
 //			setsockopt(fd, SOL_SOCKET,SO_KEEPALIVE, &kOpt, sizeof(int));
 	//		setsockopt(fd, SOL_TCP,TCP_KEEPINTVL, &kAI, sizeof(int));
 //			setsockopt(fd, SOL_TCP, TCP_KEEPCNT, &kCnt, sizeof(int));
