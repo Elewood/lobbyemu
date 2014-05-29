@@ -101,6 +101,19 @@ dataType 5 = userGreeting
 #define OPCODE_DATA_LOBBY_ENTERROOM 0x7006
 #define OPCODE_DATA_LOBBY_ENTERROOM_OK 0x7007
 
+#define OPCODE_DATA_LOBBY_CHATROOM_GETLIST 		  0x7406
+#define OPCODE_DATA_LOBBY_CHATROOM_CATEGORY    	  0x7407
+#define OPCODE_DATA_LOBBY_CHATROOM_LISTERROR         0x7408
+//not seen?
+#define OPCODE_DATA_LOBBY_CHATROOM_ENTRY_CATEGORY	0x7409
+#define OPCODE_DATA_LOBBY_CHATROOM_CHATROOM		  0x740a
+#define OPCODE_DATA_LOBBY_CHATROOM_ENTRY_CHATROOM	0x740b
+
+
+
+#define OPCODE_DATA_LOBBY_CHATROOM_CREATE				0x7415
+#define OPCODE_DATA_LOBBY_CHATROOM_CREATE_OK	     0x7416
+#define OPCODE_DATA_LOBBY_CHATROOM_CREATE_ERROR 0x7417
 
 //Why?
 #define OPCODE_DATA_LOGON_AS2	   	0x7019
@@ -121,6 +134,27 @@ dataType 5 = userGreeting
 #define OPCODE_DATA_LOBBY_EXITROOM_OK 0x7445
 
 #define OPCODE_DATA_REGISTER_CHAR	 0x742B
+/*
+struct registerChar
+{
+	char saveID[21] //includes null terminator
+	char name[]; //variable length. includes null terminator.
+	uint8_t unk1
+	uint16_t unk2
+	char greeting[] //var len, null term.
+	uint8_t unk3 
+	uint16_t unk4
+	uint8_unk5
+	uint16_t unk6
+	
+	
+	
+	
+	
+	}
+*/
+
+
 #define OPCODE_DATA_REGISTER_CHAROK   0x742C
 
 #define OPCODE_DATA_UNREGISTER_CHAR   0x7432
@@ -170,6 +204,8 @@ dataType 5 = userGreeting
 //7850 - failed
 //784f - ok
 
+
+
 #define OPCODE_DATA_NEWS_GETPOST		0x7854
 
 #define OPCODE_DATA_NEWS_SENDPOST	   0x7855
@@ -208,12 +244,12 @@ dataType 5 = userGreeting
 
 
 //These happen upon entering ALTIMIT DESKTOP
-#define OPCODE_DATA_NEWCHECK			 0x7867
-#define OPCODE_DATA_NEWCHECK_OK		  0x7868
-#define OPCODE_DATA_NEWCHECK_FAIL		0x7869
+#define OPCODE_DATA_MAILCHECK			 0x7867
+#define OPCODE_DATA_MAILCHECK_OK		  0x7868
+#define OPCODE_DATA_MAILCHECK_FAIL		0x7869
 //
-#define OPCODE_DATA_MAILCHECK			0x786D
-#define OPCODE_DATA_MAILCHECK_OK		 0x786e
+#define OPCODE_DATA_NEWCHECK			0x786D
+#define OPCODE_DATA_NEWCHECK_OK		 0x786e
 //
 
 #define OPCODE_DATA_COM			  0x7876
@@ -280,7 +316,8 @@ dataType 5 = userGreeting
 #define OPCODE_DATA_MAIL_SEND_OK		0x7801
 
 
-
+#define OPCODE_DATA_LOBBY_FAVORITES_AS_INQUIRY		0x7858
+//sends the DISKID of the lobby server to get the status of... I think.
 
 
 ///////////////

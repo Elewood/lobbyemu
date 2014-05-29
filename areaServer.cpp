@@ -1,8 +1,23 @@
 #include "areaServer.h"
-#include <string>
+#include <string.h>
 #include <netinet/in.h>
-#include <cstring>
 #include <stdio.h>
+
+/*
+
+		char serverName[21];
+		char shortName[9];
+		uint8_t id[8];
+		uint16_t port;
+		uint32_t localIP;
+		uint32_t extIP;
+		
+		uint16_t numUsers;
+		uint8_t status;
+*/
+
+
+
 AreaServer::AreaServer()
 {
 	// init everything to 0?
@@ -30,10 +45,7 @@ AreaServer::AreaServer(int socket, uint32_t eIp, uint32_t lIp, uint32_t port, ch
 	this->serverUsers = 0;
 	this->serverLevel = level;	
 	this->serverType = sType;
-	printf("REGISTERING AREA SERVER: %s, ID:",this->serverName);
-	for(int i = 0; i < 8; i++) printf("%02X",this->serverId[i]);
-
-	printf(", STATUS:%02X, LEVEL:%02X, USERS:%02X, TYPE: %02X\n",this->serverStatus,this->serverLevel,this->serverUsers, this->serverType);
+	printf("REGISTERING AREA SERVER: %s, ID:%08X, STATUS:%02X, LEVEL:%02X, USERS:%02X, TYPE: %02X\n",this->serverName,this->serverId,this->serverStatus,this->serverLevel,this->serverUsers, this->serverType);
 	
 }	
 
@@ -65,13 +77,16 @@ void AreaServer::setLevel(uint16_t level)
 
 bool AreaServer::GetServerLine(uint8_t * output,uint16_t outputLen, uint32_t clientIP)
 //Convenience. Automatically determines if Client and Area Server are on the same ExtIP...
-{	
+{
+
+//	printf("AWTF1\n");		
 	//Cast Fields
 	uint8_t * unk1 = output;
 	uint32_t * sAddr = (uint32_t *)&unk1[1];
 	uint16_t * sPort = (uint16_t *)&sAddr[1];
 	char * sName = (char *)&sPort[1];
 	
+//	printf("AWTF2\n");
 	uint32_t sNLen = strlen(this->serverName) + 1;
 	uint16_t * sLevel = (uint16_t *)&sName[sNLen];
 	uint16_t * sType = &sLevel[1];
@@ -103,5 +118,38 @@ bool AreaServer::GetServerLine(uint8_t * output,uint16_t outputLen, uint32_t cli
 
 
 
-	
+/*	
+struct lobbyEntry
+				{
+					uint8_t unk1;
+					uint32_t IP;
+					uint16_t Port;
+					uint8_t name; //nullTerminated
+					uint16_t Level;
+					uint16_t st1;
+					uint16_t pcs;
+					uint8_t st2;
+					uint8_t ID;
+				}	
+	*/
 }
+
+
+//		AreaServer();
+//		AreaServer(uint32_t extIp, uint32_t localIp,uint32_t port, char * name, uint8_t id);
+	
+			
+		//Destructor
+//		~AreaServer();
+
+		//Setters.. Will code Getters later...	
+//		void SetExtIP(uint32_t addr);
+	//	void SetLocalIP(uint32_t addr);
+//		void SetPort(uint16_t port);
+		
+//		void SetName(char * name);
+		
+//		void setStatus(uint8_t status);
+//		void setNumUsers(uint16_t users);
+		
+//		bool GetServerLine(uint8_t * output,uint16_t outputLen);

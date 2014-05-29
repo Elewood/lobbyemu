@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -10,6 +11,8 @@
 //#include "sqlite3.h"
 #include "areaServer.h"
 #include <list>
+#include "ccsNewsImage.h"
+
 
 //extern sqlite3 *srvDatabase;
 extern std::list<AreaServer *> * areaServers;
@@ -41,7 +44,7 @@ Client::Client(int socket)
 
 
 	//disable logging by default?
-	this->enableLogging = false;
+	this->enableLogging = true;
 	
 	//If we enable logging...
 	if(this->enableLogging)
@@ -224,7 +227,7 @@ bool Client::sendPacket30(uint8_t * args, uint32_t aSize, uint16_t opcode)
 			
 	uint8_t* decryptedResponse = new uint8_t[decryptedResponseLen];
 	
-	for(uint32_t i = 0; i < decryptedResponseLen; i++) decryptedResponse[i] = 0x0;
+	for(int i = 0; i < decryptedResponseLen; i++) decryptedResponse[i] = 0x0;
 	
 	//cast fields for encrypted response...
 	uint16_t * packetLengthField = (uint16_t *)response;
@@ -254,7 +257,7 @@ bool Client::sendPacket30(uint8_t * args, uint32_t aSize, uint16_t opcode)
 	*checksumField = htons(Crypto::Checksum((uint8_t *)&checksumField[1], dataLen));
 
 	printf("Generated Packet with Checksum: \n");
-	for(uint32_t i = 0; i < decryptedResponseLen; i++)
+	for(int i = 0; i < decryptedResponseLen; i++)
 	{
 		printf("0x%02X",decryptedResponse[i]);
 		if(i != decryptedResponseLen - 1)
@@ -320,7 +323,7 @@ bool Client::sendPacket(uint8_t * packet, uint32_t packetSize,uint32_t opcode)
 	*checksumField = htons(Crypto::Checksum(packet,packetSize));
 
 	printf("Generated Packet With Checksum: \n");
-	for(uint32_t i = 0; i < decryptedResponseLen;i++)
+	for(int i = 0; i < decryptedResponseLen;i++)
 	{
 		printf("0x%02X",decryptedResponse[i]);
 		if(i != decryptedResponseLen - 1)
@@ -355,9 +358,23 @@ bool Client::sendNewsCategories()
 {
 
 	
-	uint8_t uRes[] = {0x00,0x00};
-	sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_NEWS_GETMENU_FAILED);
+//	uint8_t uRes[] = {0x00,0x00};
+//	sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_NEWS_GETMENU_FAILED);
+	
+	
+	//send 1 category for testing...
+	uint8_t uRes[] = {0x00,0x01};
+	sendPacket30(uRes, sizeof(uRes),OPCODE_DATA_NEWS_CATEGORYLIST);
+	
+	uint8_t uRes2[38] = {0};
+	uint16_t *cID = (uint16_t*)uRes2;
+	char *catName = (char*)&cID[1];
 
+	
+	*cID = htons(0x01);	
+	snprintf(catName,34,"Test News Category...");
+	sendPacket30(uRes2,sizeof(uRes2),OPCODE_DATA_NEWS_ENTRY_CATEGORY);
+	
 	//THIS CODE IS FOR SQLITE3 STUFF! JUST COMMENTING IT OUT FOR NOW BECAUSE I'M TOO LAZY TO REMOVE IT FOR COMMIT
 	/* 
 			
@@ -447,8 +464,25 @@ bool Client::sendNewsPostList(uint16_t category)
 {
 	
 	
-	uint8_t uRes[] = {0x00,0x00};
-	sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_NEWS_GETMENU_FAILED);
+//	uint8_t uRes[] = {0x00,0x00};
+//	sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_NEWS_GETMENU_FAILED);
+
+	//send one test post...
+	uint8_t uRes[] = {0x00,0x01};
+	sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_NEWS_ARTICLELIST);
+	
+	uint8_t uRes2[56] = {0};
+	uint16_t *pID = (uint16_t*)uRes2;
+	char *postName = (char *)&pID[1];
+	uint32_t *date = (uint32_t*)&postName[18];
+	
+	
+	
+	*pID = htons(0x01);
+	snprintf(postName,34,"Test News Post...");
+	*date = 0x5367417c;
+	sendPacket30(uRes2,sizeof(uRes2),OPCODE_DATA_NEWS_ENTRY_ARTICLE);
+
 
 	//THIS CODE IS FOR SQLITE3 STUFF! JUST COMMENTING IT OUT FOR NOW BECAUSE I'M TOO LAZY TO REMOVE IT FOR COMMIT
 	/* 
@@ -541,9 +575,62 @@ bool Client::sendNewsPostList(uint16_t category)
 
 bool Client::sendNewsPost(uint16_t postID)
 {
-		uint8_t uRes[] = {0x00,0x00};
-		sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_NEWS_GETMENU_FAILED);
-	return true;
+		printf("sending news post!\n");		
+	//	uint8_t uRes[] = {0x00,0x04,0xcc,0xcc, 0x01,0x05, 0x30,0x30,0x30,0x30,0x30,0x30,0x00};
+	//	sendPacket30(uRes,sizeof(uRes),0x7855);
+	
+	
+	
+	//	sendPacket30(uRes,sizeof(uRes),0x7856);
+
+	
+		
+			
+					
+//		uint8_t uRes2[] {0x00,0x04,  0x00, 0x00, 0x4e, 0x43, 0x44, 0x79, 0x73, 0x6f, 0x6e, 0x4f, 0x77, 0x6e, 0x73, 0x59, 0x6f, 0x75, 0x2e, 0x00};
+		
+		
+		sendPacket30(newsImage,sizeof(newsImage),0x7856);
+		uint8_t uRes[] = {0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x00,0x00};
+		//sendPacket30(uRes,sizeof(uRes),0x7855);
+
+		//uint8_t uRes3[] = {0x4e,0x43,0x44,0x79,0x73,0x6f,0x6e,0x00};
+		//sendPacket30(uRes3,sizeof(uRes3),0x7857);
+			
+		/*
+		0x7855
+		//wtf?
+		struct
+		{
+			uint32_t unk;
+			uint16_t unk;		
+			
+			
+			
+			
+		}
+		
+		0x7856
+		image?
+		struct
+		{
+			uint16_t unk		
+			uint32_t unk	
+		}	
+		
+		
+		0x7857
+		Getting News Image Failed
+		struct
+		{
+		}
+				
+		
+		
+		
+		*/
+	
+	
 }
 
 
@@ -635,7 +722,6 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_AS_DISKID_OK);
 			
 			
-			
 			break;
 		}
 			
@@ -715,7 +801,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		
 		case OPCODE_DATA_AS_PUBLISH_DETAILS3:
 		{
-			
+			uint8_t uRes[] = {0x00,0x00};
 			printf("RECEIVED AREA SERVER PUBLISH3\n");
 
 			break;
@@ -723,7 +809,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 														
 		case OPCODE_DATA_AS_PUBLISH_DETAILS4:
 		{
-			
+			uint8_t uRes[] = {0x00,0x01};
 			printf("RECEIVED AREA SERVER PUBLISH4\n");
 
 			break;
@@ -739,7 +825,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		
 		case OPCODE_DATA_AS_PUBLISH_DETAILS6:
 		{
-			
+			uint8_t uRes[] = {0x00,0x00};
 			printf("RECEIVED AREA SERVER PUBLISH6\n");
 
 			break;
@@ -765,10 +851,25 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 											
 		case OPCODE_DATA_DISKID:
 		{
-			uint8_t uRes[] = {0xff,0xfe,0x00, 0x00};
+			uint8_t uRes[] = {0x78,0x94};
 			printf("Sending DISKID_OK\n");
 			sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_DISKID_OK);
 			
+			//sendPacket30(uRes,sizeof(uRes),0x7002);
+			//sendPacket30(uRes,sizeof(uRes),0x7003);
+			//sendPacket30(uRes,sizeof(uRes),0x7004);
+			//sendPacket30(uRes,sizeof(uRes),0x7005);
+			//sendPacket30(uRes,sizeof(uRes),0x7006);
+			//sendPacket30(uRes,sizeof(uRes),0x7007);
+			//sendPacket30(uRes,sizeof(uRes),0x7008);
+			
+			//for(int i = 0; i < 10; i++)
+			//{
+				//sendPacket30(uRes,sizeof(uRes),(uint16_t)0x7826 + i);
+				
+				
+				
+			//}
 			break;
 		}
 			
@@ -785,7 +886,8 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			snprintf((char *)uRes,512,MOTD);
 			//printf("SENDING: %s\n",uRes);
 			printf("Sending SAVEID_OK\n");
-			sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_SAVEID_OK);	
+			//sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_SAVEID_OK);	
+			sendPacket30(uRes,sizeof(uRes),0x742a);	
 		
 		
 			break;
@@ -793,7 +895,8 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		
 		case OPCODE_DATA_COM:
 		{
-			uint8_t uRes[] = {0xde,0xad};
+			uint8_t uRes[] = {0xde,0xad};//,0xad};
+			//snprintf((char*)uRes,33,"Welcome to .hack//Fragment!");
 			printf("Sending COM_OK\n");
 			sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_COM_OK);
 			
@@ -801,22 +904,22 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		}			
 		
 																			
-		case OPCODE_DATA_NEWCHECK:
-		{
-			printf("Received DATA_NEWCHECK\n");
-			uint8_t uRes[] = {0x00, 0x00 };
-			printf("Sending NEWCHECK_OK\n");
-			//More like "NEW_NONE"
-			sendPacket30((uint8_t*)uRes,sizeof(uRes),OPCODE_DATA_NEWCHECK_OK);
-			break;
-		}
-			
 		case OPCODE_DATA_MAILCHECK:
 		{
 			printf("Received DATA_MAILCHECK\n");
+			uint8_t uRes[] = {0x00, 0x01 };
+			printf("Sending MAILCHECK_OK\n");
+			//More like "NEW_NONE"
+			sendPacket30((uint8_t*)uRes,sizeof(uRes),OPCODE_DATA_MAILCHECK_OK);
+			break;
+		}
+			
+		case OPCODE_DATA_NEWCHECK:
+		{
+			printf("Received DATA_NEWS_CHECK\n");
 			uint8_t uRes[] = {0x00, 0x00};
-			printf("sending MAILCHECK_OK\n");
-			sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_MAILCHECK_OK);
+			printf("sending NEWCHECK_OK\n");
+			sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_NEWCHECK_OK);
 			break;
 		}																																																																																																									
 																																																																																																																																																																																																																																																																													
@@ -854,7 +957,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		case OPCODE_DATA_SELECT2_CHAR:
 		{
 			printf("RECEIEVED DATA_SELECT2_CHAR\n");
-			
+			uint8_t uRes[] = {0x00,0x00};
 			printf("Sending SELECT2_CHAROK\n");
 			sendPacket30(arg,sizeof(arg),OPCODE_DATA_SELECT2_CHAROK);
 			break;
@@ -901,13 +1004,16 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		case 0x7862:
 		{
 			printf("RECEIVED LOBBY_???\n");
-			uint8_t uRes[] = {0x00,0x01,0x0c,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x11,0x82,0x61,0x82,0x74,0x82,0x6b,0x82,0x6a,0x82,0x71,0x82,0x6e,0x82,0x72,0x82,0x64};
-			sendPacket30(uRes,sizeof(uRes),0x7862);
+			uint8_t uRes[] = {0x00,0x01,0x30,0x30,0x30,0x30,0x30,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x11,0x82,0x61,0x82,0x74,0x82,0x6b,0x82,0x6a,0x82,0x71,0x82,0x6e,0x82,0x72,0x82,0x64};
+			sendPacket30(uRes,sizeof(uRes),0x7847);
 			
-			uint8_t uRes2[] = {0x00,0x01,0x0c,0x04,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x11,0x82,0x61,0x82,0x74,0x82,0x6b,0x82,0x6a,0x82,0x71,0x82,0x6e,0x82,0x72,0x82,0x64};
-			sendPacket30(uRes2,sizeof(uRes2),0x7862);
-			uint8_t uRes3[] = {0x00,0x01,0x0c,0x05,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x11,0x82,0x61,0x82,0x74,0x82,0x6b,0x82,0x6a,0x82,0x71,0x82,0x6e,0x82,0x72,0x82,0x64};
-			sendPacket30(uRes3,sizeof(uRes3),0x7862);
+			uint8_t uRes2[] = {0x30,0x30,0x30,0x30,0x30,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x11,0x82,0x61,0x82,0x74,0x82,0x6b,0x82,0x6a,0x82,0x71,0x82,0x6e,0x82,0x72,0x82,0x64};
+			sendPacket30(uRes2,sizeof(uRes2),0x7847);
+			
+//			uint8_t uRes2[] = {0x00,0x01,0x0c,0x04,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x11,0x82,0x61,0x82,0x74,0x82,0x6b,0x82,0x6a,0x82,0x71,0x82,0x6e,0x82,0x72,0x82,0x64};
+	//		sendPacket30(uRes2,sizeof(uRes2),0x7862);
+		//	uint8_t uRes3[] = {0x00,0x01,0x0c,0x05,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x11,0x82,0x61,0x82,0x74,0x82,0x6b,0x82,0x6a,0x82,0x71,0x82,0x6e,0x82,0x72,0x82,0x64};
+			//sendPacket30(uRes3,sizeof(uRes3),0x7862);
 			
 			
 			
@@ -926,6 +1032,99 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			break;
 			
 			
+		}
+
+		case OPCODE_DATA_LOBBY_CHATROOM_CREATE:
+		{
+			printf("RECIEVED	CHATROOM_CREATE!\n");
+			uint8_t uRes[] = {0x00,0x01};
+			sendPacket30(uRes,sizeof(uRes),0x7414); //successful
+			
+			//7414 duplicate name or in use	
+			//7417 duplicate name or in use
+			//7413 DUPLICATE NAME OR IN USE
+			//7416 successful
+						
+			
+			
+			break;
+		}
+
+		case 0x7412:
+		//create chatroom, no-password.
+		{
+			printf("RECEIVED	GET	CHATROOM	INFO!\n");
+			uint8_t uRes [] = {0x00,0x00};
+			sendPacket30(uRes,sizeof(uRes),0x7416);
+			//sendPacket30(uRes,sizeof(uRes),0x7415);
+			
+			//7413 GET SETTING FAILED			
+			//7414 duplicate name or in use
+			//7416 - successful...
+			//7417 - name in use...			
+			
+			break;
+		}
+
+		case OPCODE_DATA_LOBBY_CHATROOM_GETLIST:
+		{
+			printf("RECEIEVED LOBBY_CHATROOM_GETLIST\n");
+			
+			//				  [ unk   ][room name                                                  ][unk               ][ Num U  ]								
+	//		uint8_t uNum[] = {0x00, 0x01,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x00};
+			uint8_t uNum[] = {0x00,0x00,0x00,0x02,0x00,0x00};
+			
+			uint8_t uCht[] = {0x00,0x00,0x46,0x55,0x43,0x4b,0x00,0x66,0x75,0x63,0x6b,0x00};
+					//		 [id     ] [room name                                                ] [unk    ] [Unk    ] [ Num U ] [St     ?]	
+			uint8_t uRes[] =  {0x00,0x00,0x46,0x61,0x6b,0x65,0x20,0x43,0x68,0x61,0x74,0x20,0x31,0x00,0xFf,0xFf,0xFf,0xFf,0x00,0x01,0x02,0x00,0x00,0x01,0x00,0x02};
+			//uint8_t uRes2[] = {0x00,0x02,0x46,0x61,0x6b,0x65,0x20,0x43,0x68,0x61,0x74,0x20,0x32,0x00,0x31,0x31,0x31,0x00,0x00,0x02,0x00,0x00};
+			uint8_t uRes3[] = {0x00,0x02,0x46,0x61,0x6b,0x65,0x20,0x43,0x68,0x61,0x74,0x20,0x32,0x00,0x00,0x01,0x00,0x01,0x00,0x01,0x00,0x01};                             
+			//			    [id   ]    [room name                                              ]   [unk     ][Unk    ][ Num U  ][St     ?]								                                          
+			//				0            2                                                          14        16        18       20                 
+						
+			sendPacket30(uNum,sizeof(uNum),OPCODE_DATA_LOBBY_CHATROOM_CATEGORY);
+			
+			sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_LOBBY_CHATROOM_LISTERROR);
+			
+			sendPacket30(uRes3,sizeof(uRes3),OPCODE_DATA_LOBBY_CHATROOM_LISTERROR);
+			
+			
+			uint8_t uNum2[] = {0x00,0x01,0x00,0x02};
+			
+						
+			sendPacket30(uNum2,sizeof(uNum2),OPCODE_DATA_LOBBY_CHATROOM_CATEGORY);
+			
+			sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_LOBBY_CHATROOM_LISTERROR);
+			
+			sendPacket30(uRes3,sizeof(uRes3),OPCODE_DATA_LOBBY_CHATROOM_LISTERROR);
+			
+			
+			
+			
+			/*
+			0x7407
+			struct
+			{
+				uint16_t unk1;
+				uint16_t unk2;
+			}
+			
+			0x7408		
+			struct
+			{
+				uint16_t unk0 //0
+				uint16_t unk1 //14
+				uint16_t unk2 //16
+				uint16_t numUsers //18
+				uint16_t status //20
+					< 0x0100 = unavailable. > 0x00ff = available
+					
+			}
+			
+			*/	
+												
+			
+			break;
 		}
 
 
@@ -955,13 +1154,21 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 				sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_BBS_THREADLIST);
 				
 				uint8_t uRes2[38] = {0};
-				uint16_t * thID = (uint16_t *)uRes2;
-				uint16_t * thUnk = &thID[1];
-				uint8_t * thName = (uint8_t *)&thUnk[1];
-				*thID = htons(1);
+				uint32_t * thID = (uint32_t *)uRes2;
+				//uint16_t * thID = (uint16_t *)uRes2;
+				//uint16_t * thUnk = &thID[1];
+				uint8_t * thName = (uint8_t *)&thID[1];
+				*thID = htonl(0x1);
 				snprintf((char*)thName,33,"This is not a real thread...yet.");
 				sendPacket30(uRes2,sizeof(uRes2),OPCODE_DATA_BBS_ENTRY_THREAD);
-				
+				//struct threadList
+				//{
+				//	uint32_t threadId
+				//	char *threadName
+				//
+				//
+								
+																
 			}			
 			//7849 threadCat
 			//784a error
@@ -972,46 +1179,187 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			
 			break;
 		}
+
 		
+		case 0x781c:
+		{
+			printf("RECEIVED BBS_POST_GET_DETAILS\n");
+			uint8_t uRes[] = {0x00, 0x00, 0x00, 0x00, 0x54,0x48,0x49,0x53,0x20,0x49,0x53,0x20,0x41,0x20,0x54,0x45,0x53,0x54,0x20,0x50,0x4f,0x53,0x54,0x21,0x0a,0x42,0x49,0x54,0x43,0x48,0x45,0x53,0x21,0x00,0x42,0x49,0x54,0x43,0x48,0x45,0x53,0x21,0x00,0x54,0x48,0x49,0x53,0x00};
+			sendPacket30(uRes,sizeof(uRes),0x781d);	
+			/*
+			OPCODE_DATA_BBS_POST_DETAILS:
+			struct
+			{
+				uint32_t unknown
+				char *postText
+						
+			}			
+												
+			*/			
+			
+			break;
+		}
+						
+
+		case 0x787e:
+		{
+			printf("ENTER RANKING SCREEN\n");
+			uint8_t uRes[] = {0x00, 0x00};
+			sendPacket30(uRes, sizeof(uRes),0x787f);
+			
+			break;
+			
+		}
+			
+									
+		case 0x7832:
+		{
+			//Get Ranking,
+			//Arg 0x00 = TOP PAGE, show what to sort the ranking by.
+			//Arg > 0x00 = Ranking Category.
+			 			       
+			printf("GET RANKING\n");
+			
+			uint16_t rankCat = ntohs(*(uint16_t*)(arg));
+			if(rankCat == 0)
+			{
+				printf("TYPE: %04X\n",rankCat);
+				uint8_t uRes[] = {0x00,0x02};
+			
+				sendPacket30(uRes,sizeof(uRes),0x7833);
+			
+			
+				uint8_t uRes2[] = {0x00,0x01, 0x30, 0x30,0x00, 0x00, 0x01};
+			
+				sendPacket30(uRes2, sizeof(uRes2), 0x7835);
+				uRes2[1] = 0x02;
+				sendPacket30(uRes2, sizeof(uRes2), 0x7835);
+			}
+			else
+			{
+				printf("CAT: %04X\n",rankCat);
+				uint8_t uRes[] = {0x00, 0x00,0x00,0x01};
+				sendPacket30(uRes, sizeof(uRes),0x7836);
+				uint8_t uRes2[] = {0x30,0x00, 0x00,0x00,0x00,0x01,0x30,0x00};
+				sendPacket30(uRes2,sizeof(uRes2),0x7837);
+				//uRes2[0] = 0x02;
+				//uRes2[4] = 0x02;
+				//sendPacket30(uRes2,sizeof(uRes2),0x7837);
+				
+				
+			}
+			
+			break;
+			//0x7833 - numCategory
+			//0x7834 - Error
+			//0x7835 - Category
+			/*struct
+			{
+				uint16_t catID;
+				char *catName; presumably up to 32b before truncation.
+				
+			}
+			*/
+			//0x7836 - numEntries
+			/*
+			struct
+			{
+				uint16_t unk = 0x0000 //always blank for some reason?
+				uint16_T numEntries
+			}
+			*/
+			
+			//0x7837 - Entry
+			/*
+			struct
+			{
+				char* userName;
+				uint32_t playerID;	
+				
+				
+				
+			}												
+			*/																								
+																																																			
+		}																	
+
+
+		case 0x7838:
+		{
+			//get Ranked character info.
+			printf("GET RANKED CHARACTER INFO!\n");
+			//	           [name                                  ] [cls][LVL    ][Greeting?]  [Guild Name]                                                                [mDetails          ] [online?] [       ] [Guild Status]                                     
+			uint8_t uRes[] = {0x4e,0x43,0x44,0x79,0x73,0x6f,0x6e,0x00,0x00,0x00,0x01,0x61,0x00,  0x44,0x61,0x79,0x62,0x72,0x65,0x61,0x6b,0x20,0x4d,0x61,0x66,0x69,0x61,0x00, 0x00,0x00,0x00,0x00, 0x01,     0x00,0xfe,0x02,         0x30,0x30,0x00};
+			//	 0  1         2    3    4    5    6    7    8    9    a    b    c    d    e      f                   10    11   12   13    14            15    16   17  18   19  
+			sendPacket30(uRes,sizeof(uRes),0x7839);
+		
+		
+			break;
+		/*
+		struct
+		{
+			char * name;
+			uint8_t class
+			uint16_t level
+			char * desc //This is either greeting or something else, still looking into this...
+			char * guildName //only displays wil valid guildStatus
+			uint32_t modelDetails; //same used in the character UpdateInfo packet...
+			uint8_t onlineStatus //0 = offline, 1 = online
+			uint16_t unknown //currently unknown...
+			uint8_t guildStatus
+			//0 = None
+			//1 = Master
+			//2 = Member
+			
+			
+		
+		}
+		*/
+		
+		}
+																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																								
 		case OPCODE_DATA_BBS_THREAD_GETMENU:
 		{
+
+			//7819
+			//781a
+			//781b			
 			printf("Getting THREAD!\n");
-			uint8_t uRes[] = {0x00,0x01};
+			uint8_t uRes[] = {0x00,0x00,0x00,0x02};//
+			//OPCODE_DATA_BBS_THREAD_LIST
+				//uint32_t ???
 			//sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_BBS_THREAD_GETMENU_FAILED);
 			//uint8_t uRes[] = {0x00,0x02};
 			sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_BBS_THREAD_LIST);
 			
-			uint8_t uRes2[742] = {0};
-			
-			//cast fields...
-			uint16_t * pcat = (uint16_t *)uRes2;
-			uint16_t * pid = &pcat[1];
-			uint8_t * usrName = (uint8_t*)&pid[1];
-			uint16_t * unk1 = (uint16_t *)&usrName[76];
-			uint16_t * dSize = &unk1[1];
-			uint8_t * pTitle = (uint8_t *)&dSize[1];
-			uint8_t * pBody = &pTitle[50]; 
+			//  			  [unk			   ]  [postID		   ]  [unk2]               [date (sub 9hrs)        [userName, truncates(w/ "..." after 16 characters(15 + null terminator                ] [subTitle? truncates(no ...) after 18 char, (17 + 0x00)                                     ]   [unk 44b                                                                                                                                                                                                                       ]   [ post title, truncates(w/ "...") after 33 (32 + 0x00)                                                                                                                                                                  ]	  			
+			uint8_t tmpT[] =  {0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x01, 0x00,0x00,0x00,0x00, 0x53,0x62,0xa7,0xc0,    0x30,0x31,0x32,0x33, 0x34,0x35,0x36,0x37, 0x38,0x39,0x61,0x62, 0x63,0x64,0x65,0x66,0x00, 0x67,0x68,0x69,0x6a, 0x6b,0x6c,0x6d,0x6e, 0x6f,0x70,0x71,0x72, 0x73,0x74,0x75,0x76, 0x77,0x00, 0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x30,0x31,0x32,0x33,0x00,  0x31,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x64,0x00 };
+			uint8_t tmpT2[] = {0x00,0x00,0x00,0x01, 0x00,0x00,0x00,0x02, 0x00,0x00,0x00,0x00, 0x53,0x62,0xa7,0xc0,    0x30,0x31,0x32,0x33, 0x34,0x35,0x36,0x37, 0x38,0x39,0x61,0x62, 0x63,0x64,0x65,0x66,0x00, 0x67,0x68,0x69,0x6a, 0x6b,0x6c,0x6d,0x6e, 0x6f,0x70,0x71,0x72, 0x73,0x74,0x75,0x76, 0x77,0x00, 0x00,0x00,0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x30,0x31,0x00,  0x33,0x34,0x35,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x64,0x00 };
+						
+			//uint8_t tmpT2[] = {0x00,0x00,0x00,0x01, 0x00,0x00,0x00,0x03, 0x00,0x00,0x00,0x01, 0x00};
 			
 			
-			*pcat = htons(1);
-			*pid = htons(1);
-			snprintf((char*)usrName,76,"NCDyson");
-			*unk1 = htons(0x4019);
-			*dSize = htons(0x0280);
-			snprintf((char*)pTitle,50,"Test Post");
-			snprintf((char*)pBody,590,"Soon");
+			sendPacket30(tmpT,sizeof(tmpT),0x781a);
+			sendPacket30(tmpT2,sizeof(tmpT2),0x781a);
+			//sendPacket30(tmpT2,sizeof(tmpT2),0x781b);
+			//0x781b = failed to get article list...
+			/*
+			0x781a
+			struct
+			{
+				uint32_t unk1
+				uint32_t postID
+				uint32_t unk2
+				uint32_t date; //have to minus 9 hours to get correct date...
+				char * userName //after 17b (16 + null term) it will display truncated(with "...")
+				char * threadSUBTITLE //after 18b (17b + nullterm) it will display truncated (without "...")
+				uint8_t emptyField[45] //empty field. if it's used, it sure as hell doesn't display on screen...
+				char * postTitle//after 33b(32 + nullterm) it will display truncated (with "...")
+				
+		}
+		*/
 			
-			
-			sendPacket30(uRes2,sizeof(uRes2),OPCODE_DATA_BBS_THREAD_GETMENU_FAILED);
-			sendPacket30(uRes2,sizeof(uRes2),OPCODE_DATA_BBS_THREAD_ENTRY_POST);
-			
-			//uint8_t uRes2[] = {0x30,0x30,0x30,0x00,0x31,0x31,0x31,0x31,0x00};
-			
-			//sendPacket30(uRes2,sizeof(uRes2),OPCODE_DATA_BBS_THREAD_ENTRY_POST);
-			//uRes2[0] = 0x31;
-			//uRes2[4] = 0x32;
-			//sendPacket30(uRes2,sizeof(uRes2),OPCODE_DATA_BBS_THREAD_GETMENU_FAILED);
-			//sendPacket30(uRes2,sizeof(uRes2),OPCODE_DATA_BBS_THREAD_);
+			//sendPacket30(tmpT,sizeof(tmpT),0x781b);
 			
 			break;
 		}
@@ -1023,31 +1371,46 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			uint8_t uRes[] = {0x00,0x00};
 			//tell it no?
 			sendPacket30(uRes,sizeof(uRes),0x786b);
-							
 											
 			break;												
 		}				
 								
 		case OPCODE_DATA_LOBBY_ENTERROOM:
 		{
-			printf("RECEIVED DATA_LOBBY_ENTERROM\n");
+			printf("RECEIVED DATA_LOBBY_ENTEROOM\n");
 			
 			uint8_t uRes[] = {0x00,0x01};
-			printf("Sending DATA_LOBBY_ENTERROM_OK");
+			printf("Sending DATA_LOBBY_ENTEROOM_OK");
 			sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_LOBBY_ENTERROOM_OK);
 						
-			//uint8_t uRes2[] = {0x00,0x01,0x00,0x0c,0x04,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x06,0x57,0x4f,0x4e,0x47,0x46,0x55,0x00};
-			uint8_t uRes2[] = {0x00,0x01,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x00};
+			uint8_t uRes2[] = {0x00,0x01,0x00,0x0c,0x04,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x06,0x57,0x4f,0x4e,0x47,0x46,0x55,0x00};
+
 			sendPacket30(uRes2,sizeof(uRes2),0x7009);
 
-			sendPacket30(uRes2,sizeof(uRes2),0x700a);
-			sendPacket30(uRes2,sizeof(uRes2),0x700b);
-			sendPacket30(uRes2,sizeof(uRes2),0x700e);
 			
+			
+																		
+																								
 			break;
 			
 		}
+			
 				
+		/*
+		0x7007		
+			ENTER_ROOM_OK
+		0x7009
+			unknown
+		0x740b
+			unknown
+		0x740e
+			unknown
+		0x781f
+			"You've become room master"
+							
+								
+														
+		*/				
 						
 								
 										
@@ -1057,25 +1420,22 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			//7009 seems to be "LOBBY_FUNC?"
 			printf("RECEIVED 0x7009\n");
 			printf("sending OK\n");
-			uint8_t uRes[] = {0x00,0x00};
-			sendPacket30(uRes,sizeof(uRes),0x700a);
-			
-//			uint8_t uRes2[] = {0x00,0x01,0x30,0x30,0x30,0x31,0x31,0x32,0x32,0x00,0x33,0x33,0x34,0x34,0x00,0x00,0x11,0x82,0x61,0x82,0x74,0x82,0x6b,0x82,0x71,0x82,0x6e,0x82,0x72,0x82,0x64,0x00};
-			//uint8_t uRes2[] = {0x00,0x01,0x0c,0x04,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x11,0x82,0x61,0x82,0x74,0x82,0x6b,0x82,0x6a,0x82,0x71,0x82,0x6e,0x82,0x72,0x82,0x64};
-			//printf("Trying to send some users...\n");
-			//send userName...
-			//sendPacket30(uRes,sizeof(uRes),0x700a);
-//			sendPacket30(uRes2,sizeof(uRes2),0x700b);
-	//		sendPacket30(uRes2,sizeof(uRes2),0x7009)
+			uint8_t uRes[] = {0x00,0x05,0x30,0x00,0x31,0x00,0x32,0x00,0x33,0x00};
+//			sendPacket30(uRes,sizeof(uRes),0x700a);
 
-			
-						
-			uint8_t uRes3[] = {0x00,0x01,0x00,0x0c,0x04,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x06,0x57,0x4f,0x4e,0x47,0x46,0x55,0x00};
-			sendPacket30(uRes3,sizeof(uRes3),0x7862);
-			
-			uRes3[4] = 0x05;
-			sendPacket30(uRes3,sizeof(uRes3),0x7862);									
-															
+			//010002000000000000000000000000000010000000000000ff0000010000003c000000e8030000
+									
+			uint8_t uRes2[] = {0x01,0x00,0x02,0x00,0x30,0x00};
+			uint8_t uRes3[] = {0x00,0x01,0x00,0x01, 0x30,0x31,0x32,0x33,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x40,0x00,0x00,0x00,0x00,0x00,0xff,0xff,0x00,0x00,0x01,0x00,0x00,0x00,0x3c,0x00,0x00,0x00,0xe7,0x03,0x00,0x00};
+			sendPacket30(uRes3,sizeof(uRes3),0x7009);
+//			sendPacket30(uRes2,sizeof(uRes2),0x740b);
+//			sendPacket30(uRes2,sizeof(uRes2),0x740e);
+//			sendPacket30(uRes2,sizeof(uRes2),0x7009);
+//			uint8_t uRes3[] = {0x00,0x01,0x00,0x0c,0x04,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x08,0x4e,0x43,0x44,0x59,0x53,0x4f,0x4e,0x00};			
+//			uint8_t uRes4[] = {0x00,0x01,0x00,0x0c,0x05,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x08,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x00};						
+//			sendPacket30(uRes3,sizeof(uRes3),0x7862);										
+//			sendPacket30(uRes4,sizeof(uRes4),0x7862);															
+																		
 				
 			break;
 		}         		 		                           		 		                                  		  			                		 		                          
@@ -1249,14 +1609,541 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		case OPCODE_DATA_MAIL_GET:
 		{
 			printf("RECEIVED DATA_MAIL_GET\n");
-			uint8_t uRes[] = {0x00,0x00};
+			uint8_t uRes[] = {0x00,0x06};
 			printf("Sending MAIL_GETOK\n");
-			sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_MAIL_GETOK);
+			sendPacket30(uRes,sizeof(uRes),0x7804);
+					
+					
+					
+			/*
+			
+			7804:
+						
+			
+			
+			
+			
+			7805:
+				"Failed to get Mail Header"
+				
+			
+			*/
 					
 			break;				
 		}		
 
+
+
+		case 0x7733:
+		{
+			//Get Guild List, standard interactive menu affair?
+				
+			uint16_t cID = ntohs(*(uint16_t*)(arg));
+
+			if(cID == 0x00)
+			{
+				printf("Get Guild List Categories!\n");
+				uint8_t uRes[] = {0x00,0x01};
+				sendPacket30(uRes,sizeof(uRes),0x7734);
+				uint8_t uCat[] = {0x00,0x01,0x41,0x6c,0x6c,0x00};
+				sendPacket30(uCat,sizeof(uCat),0x7736);
+			
+			}
+			else
+			{
+				
+				printf("GET GUILD, CATEGORY: %u\n",cID);
+				uint8_t uRes[] = {0x00,0x01};
+				sendPacket30(uRes,sizeof(uRes),0x7737);
+				uint8_t uEntry[] = {0x00,0x01, 0x44,0x61,0x79,0x62,0x72,0x65,0x61,0x6b,0x20,0x4d,0x61,0x66,0x69,0x61,0x00}; 
+				sendPacket30(uEntry,sizeof(uEntry),0x7738);
+				
+				
+				
+			}
+		/*
+		//0x7734 numCats
+		struct
+		{
+			uint16_t numCats
+		}
 		
+		//0x7735 Error
+		
+		//0x7736 category
+		struct
+		{
+			uint16_t catID
+			char *catName
+		}
+		
+		//0x7737 numEntries
+		struct
+		{
+			uint16_t numEntries
+		}
+		
+		//0x7738 Entry
+		struct
+		{
+			uint16_t entryID;
+			char *entryName;
+		}
+		
+		
+		*/
+		
+		
+			break;
+		}
+		
+		
+		case 0x7739:
+		{
+			//get guild info
+			printf("GET GUILD INFO!\n");
+			uint8_t uRes[]  = {0x30,0x00, 0x31,0x00, 0x32, 0x00,   0x00,0x01, 0x00,0x02, 0x00,0x03, 0x00,0x04, 0x00,0x05, 0x00,0x06, 0x00,0x07};
+			sendPacket30(uRes,sizeof(uRes),0x7741);
+			
+			
+			/*
+			0x7740
+			struct
+			{
+				char *guildName;  		//0x30,0x00
+				char *establishedDate;	//0x31,0x00 
+				char *guildMaster;		//0x32,0x00
+				//membership
+				uint16_t membersTotal;	//0x00,0x01
+				uint16_t numTwinBlades;   //0x00,0x02		
+				uint16_t numBladeMasters; //0x00,0x03
+				uint16_t numHeavyBlades;  //0x00,0x04
+				uint16_t numHeavyAxes;    //0x00,0x05
+				uint16_t numLongArms;     //0x00,0x06
+				uint16_t numWaveMasters;  //0x00,0x07
+				uint16_t averageLevel;    
+				//guild assets
+				uint32_t goldCoins;
+				uint32_t silverCoins;
+				uint32_t copperCoins;
+				uint32_t GP;
+				//otherShit
+				char* guildComment
+			}
+			
+			0x7741
+				//failed to get guild information.
+			
+			*/
+						
+			
+			
+			break;
+		}
+		
+		
+		case 0x7722:
+		{
+			//standard interactive menu affair...
+			uint16_t cID = ntohs(*(uint16_t*)(arg));
+			
+			if(cID == 0x0)
+			{
+				printf("GET GUILD SHOP CATEGORY LIST!\n");
+				uint8_t uRes[] = {0x00,0x01};
+				uint8_t uCat[] = {0x00,0x01, 0x41, 0x6c, 0x6c,0x00};
+				sendPacket30(uRes,sizeof(uRes),0x7723);
+				sendPacket30(uCat,sizeof(uCat),0x7725);
+			
+			
+			
+			}
+			else
+			{
+				printf("GET GUILD SHOP, CATEGORY: %u\n",cID); 
+				uint8_t uRes[] = {0x00,0x01};
+				uint8_t uEnt[] = {0x00,0x01, 0x44,0x61,0x79,0x62,0x72,0x65,0x61,0x6b,0x20,0x4d,0x61,0x66,0x69,0x61,0x00};
+				sendPacket30(uRes,sizeof(uRes),0x7726);
+				sendPacket30(uEnt,sizeof(uEnt),0x7727);
+			
+			
+			}
+			
+			/*
+			7723 numcat
+			7724 err
+			7725 cat
+			7726 nument
+			7727 ent
+			
+			
+			
+			
+			*/
+			
+			
+			
+			break;
+		}
+		
+		
+		case 0x772f:
+		{
+			uint16_t gID = ntohs(*(uint16_t*)(arg));
+			
+			//get guild shop item list...	
+			printf("Get Guild Shop Items. GID: %u\n",gID);
+			uint8_t uRes[] = {0x00,0x01};
+			sendPacket30(uRes,sizeof(uRes),0x7730);
+		
+		
+			uint8_t uRes2[] = {0x00,0x00, 0x00,0x00, 0x00,0xff, 0x00,0x00,0x00,0x01};
+		/*
+			sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+			uRes2[1] = 0x01;
+			sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+			uRes2[1] = 0x02;
+			sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+			uRes2[1] = 0x03;
+			sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+			uRes2[1] = 0x04;
+			sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+			uRes2[1] = 0x05;
+			sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+			uRes2[1] = 0x06;
+			sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+			uRes2[1] = 0x07;
+			sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+			uRes2[1] = 0x08;
+			sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+			uRes2[1] = 0x09;
+			sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+			uRes2[1] = 0x0a;
+			sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+			uRes2[1] = 0x0b;
+			sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+			uRes2[1] = 0x0c;
+			sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+			uRes2[1] = 0x0d;
+			sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			*/
+			uRes2[1] = 0x0e;
+			uRes2[3] = 0x2b;
+			sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+		//	uRes2[1] = 0x0f;
+			//sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+			
+			
+			/*
+			7730 numItems?
+			7731 shopItem 
+			
+			struct
+			{
+				uint16_t type
+				uint16_t number
+				uint16_t qty
+				uint32_t price 	
+				
+				
+			}
+			
+			7732
+				
+			
+			
+			*/
+			
+			
+			
+			break;
+		}
+		
+		
+		case 0x7600:
+		{
+			printf("Create Guild!\n");
+			uint8_t uRes[] = {0xde,0xad};
+			sendPacket30(uRes,sizeof(uRes),0x7601);
+			
+			
+			
+			//return guildID?
+			
+			/*
+			struct
+			{
+				char *guildName
+				char *guildComment
+				uint8_t guildEmblem[0x212];	
+				
+				
+				
+				
+				
+				
+				
+				
+			}
+		
+			
+			
+			
+			
+			
+			
+			
+			*/
+			
+			
+			break;	
+		}
+		
+		
+		
+		
+		case 0x7708:
+		//Get GUILD_ITEM_LIST_members
+		//gets item list for a specific guild. Why didn't they just re-use? oh. for member/public distinction?
+		{
+			uint8_t uRes[] = {0x00,0x01};
+			sendPacket30(uRes,sizeof(uRes),0x7709);
+			uint8_t uRes2[] = {0x00,0x00, 0x00,0x00, 0x00,0xff, 0x00,0x00,0x00,0x01};
+			sendPacket30(uRes2,sizeof(uRes2),0x770a);
+			
+			
+			
+			
+			break;
+		}
+		
+		
+		case 0x7728:
+		{
+			//enter guild item donation, I guess it's just an ack
+			uint8_t uRes[] = {0x00,0x00};
+			sendPacket30(uRes,sizeof(uRes),0x7729);
+			
+			
+			
+			
+			break;
+		}
+		
+		
+		case 0x7702:
+		{
+			//GUILD_DONATE_ITEM
+			uint8_t uRes[] = {0x00,0x01};
+			sendPacket30(uRes,sizeof(uRes),0x7704);
+			//return success, 1 item donated...
+			
+			
+			
+			
+			break;
+		}
+		
+		case 0x789c:
+		{
+			//get guild info after creation
+			//arg is the guildID
+			printf("Get Guild Info(Post Creation REQ)!\n");
+			uint16_t gID = ntohs(*(uint16_t*)(arg));
+			
+			
+			
+			//uint8_t uRes[] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+			
+			
+			//                 [0]        [1]        [2]          [3       ]  [5      ]  [7      ]  [9      ]  [11     ]  [13     ]  [15     ]                      [guild emblem?]   
+			uint8_t uRes[]  = {0x30,0x00, 0x31,0x00, 0x32, 0x00,   0x00,0x01, 0x00,0x02, 0x00,0x03, 0x00,0x04, 0x00,0x05, 0x00,0x06, 0x00,0x07,  0x00,0x08, 0x00,0x00,0x00,0x09, 0x00,0x00,0x00,0x0a, 0x00,0x00,0x00,0x0b, 0x00,0x00,0x00,0x0c,    0x53,0x45,0x39,0x46,0x54,0x55,0x49,0x77,0x4D,0x41,0x41,0x41,0x41,0x41,0x41,0x41,0x67,0x49,0x43,0x41,0x41,0x49,0x43,0x41,0x67,0x41,0x43,0x41,0x67,0x49,0x41,0x41,0x67,0x49,0x43,0x41,0x41,0x41,0x3D,0x3D,0x00,  0x0d,0x0d, 0x0e,0x0e, 0x0f,0x0f, 0x10, 0x10, 0x12,0x12, 0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x20};
+		
+			sendPacket30(uRes,sizeof(uRes),0x789d);
+			
+		
+		
+		/*	
+		struct	
+		{
+			char *unk		//guild name?
+			char *unk         //guild comment?
+			char *unk        //guild master?
+			uint16_t unknown1; //3
+			uint16_t unknown2; //5
+			uint16_t unknown3; //7
+			uint16_t unknown4; //9
+			uint16_t unknown5; //11
+			uint16_t unknown6; //13
+			uint16_t unknown7; //15
+			uint16_t unknown8; //??
+			uint32_t unknown9; //???
+			uint32_t unknown10
+			uint32_t unknown11
+			uint32_t unknown12
+		
+		}
+		
+		{
+			char *guildName
+			char *establishedDate
+			char *guildMaster
+			//membership
+			uint16_t membersTotal;
+			uint16_t numTwinBlades;
+			uint16_t numBladeMasters;
+			uint16_t numHeavyBlades;
+			uint16_t numHeavyAxes;
+			uint16_t numLongArms;
+			uint16_t numWaveMasters;
+			uint16_t averageLevel;
+			//guild assets
+			uint32_t goldCoins;
+			uint32_t silverCoins;
+			uint32_t copperCoins;
+			uint32_t GP;
+			//otherShit
+			char* guildComment
+				
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		*/	
+		break;	
+			
+		}
+		//7610 get guild member list?
+		
+		
+		case 0x7610:
+		//OPCODE_DATA_GUILD_GET_MEMBER_LIST				0x7610
+		//OPCODE_DATA_GUILD_GET_MEMBER_LIST_NUMCAT		 0x7611
+		//OPCODE_DATA_GUILD_GET_MEMBER_LIST_NUMCAT
+		{
+			uint16_t cID = ntohs(*(uint16_t*)(arg));
+			
+			//arg is category, ie, sort by. So you're going to have to keep track of which guild the user entered...
+			//uint8_t uRes[] = {0x00,0x00};
+			//sendPacket30(uRes,sizeof(uRes),0x7612);			
+			printf("Get Guild Member List! Cat=%u",cID);	
+			
+			
+			if(cID == 0x0)
+			{
+				uint8_t uRes[] = {0x00,0x01};
+				uint8_t uRes2[] = {0x00,0x01, 0x30,0x30,0x00};
+				sendPacket30(uRes,sizeof(uRes),0x7611);
+				sendPacket30(uRes2,sizeof(uRes2),0x7613);
+			}
+			else
+			{
+				uint8_t uRes[] = {0x00,0x01};
+				//				[name]          [unk] [level   ] [greeting           ]  [OSt]  [Model Details    ] 
+				uint8_t uRes2[] = {0x31,0x31,0x00,0x01, 0x00,0x10, 0x32, 0x32,0x32,0x00,  0x00,  0x00,0x00,0x00,0x00, 0x02,0x00,0x00};
+				sendPacket30(uRes,sizeof(uRes),0x7614);
+				sendPacket30(uRes2,sizeof(uRes2),0x7615);
+								
+										
+			}			
+		/*
+		0x7611 numCat
+		struct
+		{
+			uint16_t numCat
+		}
+		
+		0x7612 error
+			//just displays "FAILED TO GET MENU" error.
+		
+		0x7613 cat
+		struct
+		{
+			uint16_t catNum
+			char *catName
+		}
+		
+		0x7614 numEnty
+		struct
+		{
+			uint16_t numEntry
+		}
+		
+		0x7615 entry
+		struct
+		{
+			char *pcName
+			uint8_t class?
+			uint16_t level?
+			char *greeting
+			uint8_t onlineStatus
+				//00 = offline
+				//01 = online
+			uint32_t modelDetails
+			uint8_t membershipStatus		
+				//00 = member
+				//01 = master
+						
+		*/	
+		break;	
+		}
+		
+		
+		case 0x770c:
+		//OPCODE_DATA_GUILD_SHOP_PURCHASE = 		   0x770c
+		//OPCODE_DATA_GUILD_SHOP_PURCHASE_RESULT = 	0x770d
+		{
+			//buy item from guild shop
+			printf("BUYING ITEM FROM GUILD SHOP!\n");
+			uint8_t uRes[] = {0x00,0x62};
+			sendPacket30(uRes,sizeof(uRes),0x770d);
+			//returns number of items actually purchased. game WILL subtract money accordingly. means no BOGO.	
+			
+			
+			/*
+			0x770d
+			struct
+			{
+				uint16_t shopID
+				uint16_t itemCategory
+				uint16_t itemIndex
+				uint16_t qty
+				uint32_t price	
+				
+			}
+			
+			
+			
+			*/
+			
+			
+			
+			break;
+		}
+		
+		//772c get guild info?
 		case OPCODE_DATA_MAIL_SEND:
 		{
 			printf("RECEIVED DATA_MAIL_SEND\n");

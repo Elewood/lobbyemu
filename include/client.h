@@ -23,8 +23,8 @@ class Client
 
 	// Socket
 	int socket;
-	uint32_t segServer;
-	uint32_t segClient;
+	int segServer;
+	int segClient;
 	uint32_t opBuster;
 	uint16_t lastOp;
 
@@ -35,6 +35,9 @@ class Client
 	uint32_t asExtAddr;   //we get this when we accept the connection
 	uint16_t asPort;	  //this comes in with the local address.
 	
+
+	char diskID[65] = {0};
+	char saveID[21] = {0};
 
 
 	bool hasSentSwitch;

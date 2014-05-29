@@ -2,6 +2,7 @@
 #define _AREASERVER_H_
 
 #include <stdint.h>
+//#include <time.h>
 
 #define AS_LIST_LINE_MAXSIZE 45 //It's actually 43, but we'll give a little wiggle room.
 class AreaServer
