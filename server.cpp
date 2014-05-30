@@ -1,7 +1,12 @@
 #include "server.h"
 
+// Singleton Instance
 Server * Server::instance = NULL;
 
+/**
+ * Singleton Instance Getter
+ * @return Singleton Instance
+ */
 Server * Server::getInstance()
 {
 	// First Time Call
@@ -15,6 +20,9 @@ Server * Server::getInstance()
 	return Server::instance;
 }
 
+/**
+ * Free Singleton Memory
+ */
 void Server::release()
 {
 	// Instance available
@@ -25,25 +33,41 @@ void Server::release()
 	}
 }
 
+/**
+ * Server Constructor
+ */
 Server::Server()
 {
 	// Create Client List
 	clients = new std::list<Client *>();
 }
 
+/**
+ * Server Destructor
+ */
 Server::~Server()
 {
 	// Iterate Clients
 	for(std::list<Client *>::iterator it = clients->begin(); it != clients->end(); ++it)
 	{
-		// Free Client
+		// Fetch Client
+		Client * client = *it;
+
+		// Remove Client from List
 		clients->erase(it);
+
+		// Free Client Memory
+		delete client;
 	}
 
 	// Free Client List
 	delete clients;
 }
 
+/**
+ * Get Client List from Server
+ * @return Client List
+ */
 std::list<Client *> * Server::GetClientList()
 {
 	// Return Client List

@@ -8,13 +8,16 @@
 #include <fstream>
 #include "areaServer.h"
 
+// Cryptography Key Array Indices
 #define KEY_CLIENT 0
 #define KEY_SERVER 1
 #define KEY_CLIENT_PENDING 2
 #define KEY_SERVER_PENDING 3
 
+// Message of the Day
 extern const char * MOTD;
 
+// Logfile Stream Type Definition
 typedef std::ofstream clOfstream;
 
 class Client
@@ -23,25 +26,32 @@ class Client
 
 	// Socket
 	int socket;
-	int segServer;
-	int segClient;
-	uint32_t opBuster;
-	uint16_t lastOp;
 
-	AreaServer * aServ;	
+	// Server Segment Number
+	uint32_t segServer;
 
-	//this is mainly used for Clients that turn out to be Area Servers.
-	uint32_t asLocalAddr; //local address comes in off the packets
-	uint32_t asExtAddr;   //we get this when we accept the connection
-	uint16_t asPort;	  //this comes in with the local address.
+	// Client Segment Number
+	uint32_t segClient;
+
+	// Area Server Object
+	AreaServer * aServ; // set when it becomes obvious Client is an Area Server	
+
+	// Area Server Local IP Address (LAN)
+	uint32_t asLocalAddr; // acquired through packet contents
+
+	// Area Server Public IP Address (WAN)
+	uint32_t asExtAddr; // acquired through Socket Context
+
+	// Area Server Port
+	uint16_t asPort; // acquired through Socket Context
 	
+	// .hack//frägment DNAS Disc ID (dummied pretty much)
+	char diskID[65];
 
-	char diskID[65] = {0};
-	char saveID[21] = {0};
+	// .hack//frägment Save ID
+	char saveID[21];
 
-
-	bool hasSentSwitch;
-	bool hasFirstServSeg;
+	// Network Logging Bit
 	bool enableLogging;
 
 	// Cryptography Handler
@@ -59,81 +69,125 @@ class Client
 	// Timeout Timer
 	time_t lastHeartbeat;
 
+	/**
+	 * Internal Common Constructor
+	 * @param socket Socket
+	 */
+	void CommonConstructor(int socket);
+
 	public:
 
-	// Constructor
-	Client(int socket);
-
-	Client(int socket, uint32_t extIp);
-
-	// Destructor
-	~Client();
-
-	// Return Socket
-	int GetSocket();
-
-	clOfstream logFile;
-	
-	//I guess we'll go with with the defines, CLIENTTYPE_GAME and CLIENTTYPE_AREASERVER...
+	// Client Type (CLIENTTYPE_GAME for PS2 or CLIENTTYPE_AREASERVER for PC)
 	uint16_t clientType;
 
-	// Return RX Buffer Reference
+	// Logfile Stream
+	clOfstream logFile;
+	
+	/**
+	 * Creates a Crypto-Client Network Channel
+	 * @param socket Socket
+	 */
+	Client(int socket);
+
+	/**
+	 * Create a Crypto-Client Network Channel
+	 * @param socket Socket
+	 * @param extIp Public IP Address (AreaServer)
+	 */
+	Client(int socket, uint32_t extIp);
+
+	/**
+	 * Destructor
+	 */
+	~Client();
+
+	/**
+	 * Returns the Client Network Socket
+	 * @return Socket
+	 */
+	int GetSocket();
+
+	/**
+	 * Returns the next available RX Buffer Pointer
+	 * @param addPosition Considers used RX Buffer Segments in Pointer Calculation if set to true
+	 * @return RX Buffer Pointer
+	 */
 	uint8_t * GetRXBuffer(bool addPosition);
 
-	// Return available RX Buffer Size
+	/**
+	 * Returns available RX Buffer Size (in Bytes)
+	 * @return Available RX Buffer Size (in Bytes)
+	 */
 	int GetFreeRXBufferSize();
 	
-	//sendPacket0x30
-	bool sendPacket30(uint8_t * args, uint32_t aSize, uint16_t opcode);
-
-	                                                
-    // sendPacket
-    bool sendPacket(uint8_t * packet, uint32_t packetSize, uint32_t opcode);
-
-	
-	//DBDRIVEN: sends news categories when requested.
-	bool sendNewsCategories();
-	
-	//DBDRIVEN: sends newsPosts for a specific category
-	bool sendNewsPostList(uint16_t category);
-	//DBDRIVEN: sends a specific news post.
-	bool sendNewsPost(uint16_t postID);
-	
-	
-	//sends Lobby Categories when requested.
-	bool sendLobbyCategories();
-	
-	//DBDRIVEN:  sends lobby list for specific category
-	bool sendLobbyList(uint16_t category);
-	
-	
-	//DBDRIVEN: sends BBS category list when requested.
-	bool sendBBSCategories();	
-	
-	//DBDRIVEN: sends BBS post list for specific category.
-	bool sendBBSPostList(uint16_t category);
-	
-	//DBDRIVEN: sends BBS thread list
-	bool sendBBSThreadList(uint16_t threadID);
-	
-	//DBDRIVEN: sends BBS post
-	bool sendsBBSPost(uint16_t postId);
-	
-	//DBDRIVEN: processes a post to the BBS and posts, if possible.
-	bool postToBBS(uint8_t * args, uint16_t aSize);
-
-	
-	uint32_t getServerSegment();
-
-	// Move RX Buffer Pointer
+	/**
+	 * Moves the RX Buffer Pointer
+	 * @param delta Movement Vector (can be negative)
+	 */
 	void MoveRXPointer(int delta);
 
-	void processPacket30(uint8_t * args, uint16_t aSize, uint16_t opcode);
-
-	// Process RX Buffer Content
+	/**
+	 * Process accumulated Packets on the RX Buffer
+	 * @return Processing Result
+	 */
 	bool ProcessRXBuffer();
 
-	// Return Client Timeout Status
+	/**
+	 * 0x30 Data Packet Processor
+	 * @param args Argument Buffer
+	 * @param aSize Argument Length (in Bytes)
+	 * @param opcode Internal Packet Opcode
+	 */
+	void processPacket30(uint8_t * args, uint16_t aSize, uint16_t opcode);
+
+	/**
+	 * Wraps Data into a 0x30 Crypto Packet and sends it
+	 * @param args Argument Buffer
+	 * @param aSize Argument Buffer Length (in Bytes)
+	 * @param opcode Internal Packet Opcode
+	 * @return Result
+	 */
+	bool sendPacket30(uint8_t * args, uint32_t aSize, uint16_t opcode);
+
+	/**
+	 * Wraps Data into a Crypto Packet and sends it
+	 * @param packet Data Buffer
+	 * @param packetSize Data Buffer Length (in Bytes)
+	 * @param opcode Packet Opcode
+	 * @return Result
+	 */
+	bool sendPacket(uint8_t * packet, uint32_t packetSize, uint32_t opcode);
+
+	/**
+	 * Send the News Category List to the Client
+	 * @return Result
+	 */
+	bool sendNewsCategories();
+	
+	/**
+	 * Send the News Post List for a set Category to the Client
+	 * @param category Category ID
+	 * @return Result
+	 */
+	bool sendNewsPostList(uint16_t category);
+
+	/**
+	 * Send News Post Content for a set Post to the Client
+	 * @param postID Post ID
+	 * @return Result
+	 */
+	bool sendNewsPost(uint16_t postID);
+	
+	/**
+	 * Increases the Server Segment Number and returns the latest available Segment Number for Packet Use
+	 * @return Next available Server Segment Number
+	 */
+	uint32_t getServerSegment();
+
+	/**
+	 * Read Client Timeout Status
+	 * @return Timeout Status
+	 */
 	bool IsTimedOut();
 };
 

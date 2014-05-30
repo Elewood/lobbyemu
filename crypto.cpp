@@ -3,18 +3,31 @@
 #include "pidata.h"
 #include "crypto.h"
 
+/**
+ * "hackOnline" Default Key Blowfish Constructor
+ */
 Crypto::Crypto()
 {
 	// Forward Call
 	PrepareStructure((uint8_t *)"hackOnline", 10);
 }
 
+/**
+ * Custom Key Blowfish Constructor
+ * @param key Key Buffer
+ * @param keyLen Key Buffer Length (in Bytes)
+ */
 Crypto::Crypto(uint8_t * key, uint32_t keyLen)
 {
 	// Forward Call
 	PrepareStructure(key, keyLen);
 }
 
+/**
+ * Calculates the Blowfish S-Boxes & Pi-Tables from the given Key
+ * @param key Key Buffer
+ * @param keyLen Key Buffer Length (in Bytes)
+ */
 void Crypto::PrepareStructure(uint8_t * key, uint32_t keyLen)
 {
 	// Allocate Memory
@@ -120,6 +133,9 @@ void Crypto::PrepareStructure(uint8_t * key, uint32_t keyLen)
 	}
 }
 
+/**
+ * Blowfish Crypto Destructor
+ */
 Crypto::~Crypto()
 {
 	// Free Memory
@@ -132,18 +148,34 @@ Crypto::~Crypto()
 	delete[] secretKey;
 }
 
+/**
+ * Returns the length of the currently set Blowfish Key Buffer
+ * @return Key Buffer Length (in Bytes)
+ */
 uint32_t Crypto::GetKeyLength()
 {
 	// Return Secret Key Length
 	return secretKeyLength;
 }
 
+/**
+ * Returns the current set Blowfish Key Buffer
+ * @return Key Buffer
+ */
 uint8_t * Crypto::GetKey()
 {
 	// Return Secret Key
 	return secretKey;
 }
 
+/**
+ * Decrypts Data using Blowfish
+ * @param payload Encrypted Payload
+ * @param payload_length Encrypted Payload Length (in Bytes)
+ * @param output Decrypted Payload Output Buffer
+ * @param output_length Decrypted Payload Output Buffer Length (in Bytes, gets set to processed length if decryption was successful)
+ * @return Decrypt Result
+ */
 int Crypto::Decrypt(const uint8_t * payload, uint32_t payload_length, uint8_t * output, uint32_t * output_length)
 {
 	// Output Buffer not available
@@ -215,6 +247,14 @@ int Crypto::Decrypt(const uint8_t * payload, uint32_t payload_length, uint8_t * 
 	return 1;
 }
 
+/**
+ * Encrypts Data using Blowfish
+ * @param payload Decrypted Payload
+ * @param payload_length Decrypted Payload Length (in Bytes)
+ * @param output Encrypted Payload Output Buffer
+ * @param output_length Encrypted Payload Output Buffer Length (in Bytes, gets set to processed length if encryption was successful)
+ * @return Encrypt Result
+ */
 int Crypto::Encrypt(const uint8_t * payload, uint32_t payload_length, uint8_t * output, uint32_t * output_length)
 {
 	// Output Buffer not available
@@ -286,6 +326,11 @@ int Crypto::Encrypt(const uint8_t * payload, uint32_t payload_length, uint8_t * 
 	return 1;
 }
 
+/**
+ * Blowfish DWORD Rotator
+ * @param value Input Value
+ * @return Output Value
+ */
 int Crypto::rotateDword(uint32_t * value)
 {
 	// Cast as Bytes
@@ -295,12 +340,24 @@ int Crypto::rotateDword(uint32_t * value)
 	return sBoxes[3][val8[0]] + (sBoxes[2][val8[1]] ^ (sBoxes[0][val8[3]] + sBoxes[1][val8[2]]));
 }
 
+/**
+ * Blowfish Pi-Table Swapper
+ * @param L Left DWORD Reference (Input & Result Output)
+ * @param R Right DWORD Reference
+ * @param P Pi-Table Index
+ */
 void Crypto::swap(uint32_t * L, uint32_t * R, uint32_t P)
 {
 	// Magic Bit Juggling (sacrifice a chicken, pray to satan, wake the dead, etc.)
 	*L ^= pArray[P] ^ rotateDword(R);
 }
 
+/**
+ * Generate Fragment Checksum
+ * @param payload Buffer
+ * @param payload_length Buffer Length (in Bytes)
+ * @return Checksum
+ */
 uint16_t Crypto::Checksum(const uint8_t * payload, uint32_t payload_length)
 {
 	// Calculate Number of DWORD Chunks

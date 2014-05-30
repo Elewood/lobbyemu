@@ -14,21 +14,33 @@ class Server
 	// Internal Client List
 	std::list<Client *> * clients;
 
-	// Singleton Constructor
+	/**
+	 * Server Constructor
+	 */
 	Server();
 
-	// Singleton Destructor
+	/**
+	 * Server Destructor
+	 */
 	~Server();
 
 	public:
 
-	// Instance Guardian
+	/**
+	 * Singleton Instance Getter
+	 * @return Singleton Instance
+	 */
 	static Server * getInstance();
 
-	// Instance Destroyer
+	/**
+	 * Free Singleton Memory
+	 */
 	static void release();
 
-	// Return Client List
+	/**
+	 * Get Client List from Server
+	 * @return Client List
+	 */
 	std::list<Client *> * GetClientList();
 };
 

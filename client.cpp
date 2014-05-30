@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -8,77 +7,49 @@
 #include "opcode.h"
 #include "client.h"
 #include <ctime>
-//#include "sqlite3.h"
 #include "areaServer.h"
 #include <list>
 #include "ccsNewsImage.h"
 
-
-//extern sqlite3 *srvDatabase;
+// Area Server List
 extern std::list<AreaServer *> * areaServers;
 
+/**
+ * Creates a Crypto-Client Network Channel
+ * @param socket Socket
+ */
 Client::Client(int socket)
 {
-	// Save Socket
-	this->socket = socket;
-
-	// Initialize RX Buffer
-	this->rxBufferPosition = 0;
-	this->rxBufferLength = 2048;
-	this->rxBuffer = new uint8_t[this->rxBufferLength];
-
-	// Create Cryptography Objects
-	for(uint32_t i = 0; i < 2; i++)
-		crypto[i] = new Crypto((uint8_t *)"hackOnline", 10);
-	for(uint32_t i = 2; i < 4; i++)
-		crypto[i] = NULL;
-
-	// Initialize Timeout Ticker
-	this->lastHeartbeat = time(NULL);
-	this->hasSentSwitch = false;
-	this->hasFirstServSeg = false;
-	this->segServer = 0x0e;
-	this->segClient = 0;
-	this->opBuster = 0;
-	this->lastOp = 0; 
-
-
-	//disable logging by default?
-	this->enableLogging = true;
-	
-	//If we enable logging...
-	if(this->enableLogging)
-	{
-		time_t curTime;
-		struct tm * timeinfo;
-		char buffer[256];
-	
-
-	
-		char logFileName[256];
-		char cwrd[256];
-		getcwd(cwrd,sizeof(cwrd));
-	
-	
-		
-		time(&curTime);
-		timeinfo = localtime(&curTime);
-		strftime(buffer,256,"%d-%m-%y_%I-%M-%S",timeinfo);
-		
-		sprintf(logFileName,"%s/logs/%s.txt",cwrd,buffer);
-		printf("Opening Log for writing: %s\n",logFileName);
-		this->logFile.open(logFileName, std::ios::app);
-	}
-
+	// Forward Call
+	CommonConstructor(socket);
 }
 
-
-
+/**
+ * Create a Crypto-Client Network Channel
+ * @param socket Socket
+ * @param extIp Public IP Address (AreaServer)
+ */
 Client::Client(int socket, uint32_t extIp)
+{
+	// Save Area Server IP
+	this->asExtAddr = extIp;
+
+	// Forward Call
+	CommonConstructor(socket);
+}
+
+/**
+ * Internal Common Constructor
+ * @param socket Socket
+ */
+void Client::CommonConstructor(int socket)
 {
 	// Save Socket
 	this->socket = socket;
-	this->asExtAddr = extIp;
+
+	// Initialize Game Data Fields
+	memset(this->diskID, 0, sizeof(this->diskID));
+	memset(this->saveID, 0, sizeof(this->saveID));
 
 	// Initialize RX Buffer
 	this->rxBufferPosition = 0;
@@ -93,45 +64,40 @@ Client::Client(int socket, uint32_t extIp)
 
 	// Initialize Timeout Ticker
 	this->lastHeartbeat = time(NULL);
-	this->hasSentSwitch = false;
-	this->hasFirstServSeg = false;
+
+	// Set Starting Segment Numbers
 	this->segServer = 0x0e;
 	this->segClient = 0;
-	this->opBuster = 0;
-	this->lastOp = 0; 
 
-
-	//disable logging by default?
+	// Enable Logging (for now)
 	this->enableLogging = true;
 	
-	//If we enable logging...
+	// Prepare Logging File
 	if(this->enableLogging)
 	{
+		// Craft Filename
 		time_t curTime;
 		struct tm * timeinfo;
 		char buffer[256];
-	
-
-	
 		char logFileName[256];
 		char cwrd[256];
-		getcwd(cwrd,sizeof(cwrd));
-	
-	
-		
+		getcwd(cwrd, sizeof(cwrd));
 		time(&curTime);
 		timeinfo = localtime(&curTime);
-		strftime(buffer,256,"%d-%m-%y_%I-%M-%S",timeinfo);
-		
-		sprintf(logFileName,"%s/logs/%s.txt",cwrd,buffer);
-		printf("Opening Log for writing: %s\n",logFileName);
+		strftime(buffer, 256,"%d-%m-%y_%I-%M-%S", timeinfo);
+		sprintf(logFileName, "%s/logs/%s.txt", cwrd, buffer);
+
+		// Notifying Administrator
+		printf("Opening Log for writing: %s\n", logFileName);
+
+		// Opening File
 		this->logFile.open(logFileName, std::ios::app);
 	}
-
 }
 
-
-
+/**
+ * Destructor
+ */
 Client::~Client()
 {
 	// Free RX Buffer
@@ -148,24 +114,41 @@ Client::~Client()
 
 }
 
+/**
+ * Returns the Client Network Socket
+ * @return Socket
+ */
 int Client::GetSocket()
 {
 	// Return Socket
 	return this->socket;
 }
 
+/**
+ * Returns the next available RX Buffer Pointer
+ * @param addPosition Considers used RX Buffer Segments in Pointer Calculation if set to true
+ * @return RX Buffer Pointer
+ */
 uint8_t * Client::GetRXBuffer(bool addPosition)
 {
 	// Return Buffer
 	return this->rxBuffer + (addPosition ? this->rxBufferPosition : 0);
 }
 
+/**
+ * Returns available RX Buffer Size (in Bytes)
+ * @return Available RX Buffer Size (in Bytes)
+ */
 int Client::GetFreeRXBufferSize()
 {
 	// Return available RX Buffer Size
 	return this->rxBufferLength - this->rxBufferPosition;
 }
 
+/**
+ * Moves the RX Buffer Pointer
+ * @param delta Movement Vector (can be negative)
+ */
 void Client::MoveRXPointer(int delta)
 {
 	// Incoming Data
@@ -198,66 +181,79 @@ void Client::MoveRXPointer(int delta)
 	}
 }
 
+/**
+ * Increases the Server Segment Number and returns the latest available Segment Number for Packet Use
+ * @return Next available Server Segment Number
+ */
 uint32_t Client::getServerSegment()
 {
-		this->segServer += 1;
-		return this->segServer - 1;
+	// Increment Server Segment Number
+	this->segServer += 1;
+
+	// Return next available Server Segment Number
+	return this->segServer - 1;
 }
 
-
-
+/**
+ * Wraps Data into a 0x30 Crypto Packet and sends it
+ * @param args Argument Buffer
+ * @param aSize Argument Buffer Length (in Bytes)
+ * @param opcode Internal Packet Opcode
+ * @return Result
+ */
 bool Client::sendPacket30(uint8_t * args, uint32_t aSize, uint16_t opcode)
-//Coneveniece function, makes sending 0x30 packets a breeze.
-//Automatically tacks on segment, calculates checksum, encrypts and sends.
 {
-	//packetsize = (checksum)       + (segCount)       + (DataSize)       + (subOpCode)      + aSize
-	//packetSize = sizeof(uint16_t) + sizeof(uint32_t) + sizeof(uint16_t) + sizeof(uint16_t) + aSize
-	uint32_t decryptedResponseLen = sizeof(uint16_t) + sizeof(uint32_t) +	sizeof(uint16_t) + sizeof(uint16_t) + aSize;
+	// Calculate real decrypted Data Length (segCount + DataSize + subOpCode + aSize)
 	uint32_t dataLen = sizeof(uint32_t) + sizeof(uint16_t) + sizeof(uint16_t) + aSize;
+
+	// Calculate Blowfish-aligned decrypted Data Length (checksum + real decrypted data length + Blowfish-Round padding)
+	uint32_t decryptedResponseLen = sizeof(uint16_t) + dataLen;
 	if(decryptedResponseLen % 8 > 0)
 	{
 		decryptedResponseLen = decryptedResponseLen / 8;
 		decryptedResponseLen = (decryptedResponseLen + 1) * 8;
 	}
 	
+	// Calculate Response Length (packet length + packet opcode + Blowfish-aligned decrypted Data Length)
 	uint32_t responseLen = decryptedResponseLen + (sizeof(uint16_t) * 2);
-	uint8_t* response = new uint8_t[responseLen];
 
+	// Allocate Working Buffers
+	uint8_t * response = new uint8_t[responseLen];
+	uint8_t * decryptedResponse = new uint8_t[decryptedResponseLen];
+
+	// Clear Blowfish Working Buffer
+	memset(decryptedResponse, 0, decryptedResponseLen);
 	
-			
-	uint8_t* decryptedResponse = new uint8_t[decryptedResponseLen];
-	
-	for(int i = 0; i < decryptedResponseLen; i++) decryptedResponse[i] = 0x0;
-	
-	//cast fields for encrypted response...
+	// Cast Fields for Encrypted Response
 	uint16_t * packetLengthField = (uint16_t *)response;
 	uint16_t * packetOpcodeField = &packetLengthField[1];
 	uint8_t * packetPayloadField = (uint8_t *)&packetOpcodeField[1];
 	
-	//cast fields for plaintext payload...
+	// Cast Fields for Plaintext Payload
 	uint16_t * checksumField = (uint16_t *)decryptedResponse;
 	uint32_t * segmentField = (uint32_t *)&checksumField[1];
 	uint16_t * lengthField = (uint16_t *)&segmentField[1];
 	uint16_t * subOpcodeField = &lengthField[1];
 	uint8_t * packetField = (uint8_t *)&subOpcodeField[1];
 	
-	
-	//write static data to final packet buffer...
+	// Write Static Data to outermost Packet Layer (Packet Length & Opcode)
 	*packetLengthField = htons(responseLen - sizeof(*packetLengthField));
 	*packetOpcodeField = htons(0x30);
 	
-	//write static data to plaintext payload...
+	// Write Static Data to innermost Plaintext Packet Layer (Segment Number, Argument Length + Checksum Length, Internal Opcode)
 	*segmentField = htonl(this->getServerSegment());
 	*lengthField = htons(aSize + sizeof(uint16_t));
 	*subOpcodeField = htons(opcode);
 	
-	memcpy(packetField, args,aSize);
+	// Copy Argument Data into innermost Plaintext Packet Layer
+	memcpy(packetField, args, aSize);
 	
-	//calculate checksum
+	// Calculate Checksum and store it in Packet
 	*checksumField = htons(Crypto::Checksum((uint8_t *)&checksumField[1], dataLen));
 
+	// Notify Administrator
 	printf("Generated Packet with Checksum: \n");
-	for(int i = 0; i < decryptedResponseLen; i++)
+	for(uint32_t i = 0; i < decryptedResponseLen; i++)
 	{
 		printf("0x%02X",decryptedResponse[i]);
 		if(i != decryptedResponseLen - 1)
@@ -267,11 +263,10 @@ bool Client::sendPacket30(uint8_t * args, uint32_t aSize, uint16_t opcode)
 	}
 	printf("\n");
 
+	// Encrypt Packet
+	crypto[KEY_SERVER]->Encrypt(decryptedResponse, decryptedResponseLen, packetPayloadField, &decryptedResponseLen);
 	
-	//encrypt response...
-	crypto[KEY_SERVER]->Encrypt(decryptedResponse,decryptedResponseLen,packetPayloadField,&decryptedResponseLen);
-	
-
+	// Notify Administrator
 	/*
 	printf("Encrypted Packet:\n");
 	for(int i = 0; i < responseLen; i++)
@@ -281,49 +276,67 @@ bool Client::sendPacket30(uint8_t * args, uint32_t aSize, uint16_t opcode)
 		{
 			printf(",");
 		}
-		
 	}
 	printf("\n");
+	*/
 
-	*/		
-	send(this->socket, (char*)response,responseLen,0);
-	return true;
+	// Send Packet
+	if (send(this->socket, (char*)response, responseLen, 0) == (int)responseLen)
+	{
+		// Send Success
+		return true;
+	}
+
+	// Send Failure
+	return false;
 }
 
+/**
+ * Wraps Data into a Crypto Packet and sends it
+ * @param packet Data Buffer
+ * @param packetSize Data Buffer Length (in Bytes)
+ * @param opcode Packet Opcode
+ * @return Result
+ */
 bool Client::sendPacket(uint8_t * packet, uint32_t packetSize,uint32_t opcode)
-//convenience function, to make sending packets easier. Automatically calculates checksum, encrypts, and sends.
 {
+	// Calculate Blowfish-aligned decrypted Data Length (checksum + packetSize + Blowfish-Round padding)
 	uint32_t decryptedResponseLen = packetSize + sizeof(uint16_t);
 	if(decryptedResponseLen % 8 > 0)
 	{
-		//uint32_t tmpPacketSize
 		decryptedResponseLen = decryptedResponseLen / 8;
 		decryptedResponseLen = (decryptedResponseLen + 1) * 8;
 	}
-	uint32_t responseLen = decryptedResponseLen + (sizeof(uint16_t) * 2);
-	uint8_t* response = new uint8_t[responseLen];
-	
-	uint8_t* decryptedResponse = new uint8_t[decryptedResponseLen];
 
-	//cast fields for encrypted response
+	// Calculate Response Length (packet length + packet opcode + Blowfish-aligned decrypted Data Length)
+	uint32_t responseLen = decryptedResponseLen + (sizeof(uint16_t) * 2);
+
+	// Allocate Working Buffers
+	uint8_t * response = new uint8_t[responseLen];
+	uint8_t * decryptedResponse = new uint8_t[decryptedResponseLen];
+
+	// Cast Fields for Encrypted Response
 	uint16_t * packetLengthField = (uint16_t *)response;
 	uint16_t * packetOpcodeField = &packetLengthField[1];
 	uint8_t * packetPayloadField = (uint8_t *)&packetOpcodeField[1];
 
-	//cast fields for plaintext payload...
+	// Cast Fields for Plaintext Payload
 	uint16_t * checksumField = (uint16_t *)decryptedResponse;
 	uint8_t * packetField = (uint8_t *)&checksumField[1];
 
-	//write static data...
+	// Write Static Data to outermost Packet Layer (Packet Length & Opcode)
 	*packetLengthField = htons(responseLen - sizeof(*packetLengthField));
 	*packetOpcodeField = htons(opcode);
 
-	//write packet data...
-	memcpy(packetField,packet,packetSize);
+	// Copy Argument Data into innermost Plaintext Packet Layer
+	memcpy(packetField, packet, packetSize);
+
+	// Calculate Checksum and store it in Packet
 	*checksumField = htons(Crypto::Checksum(packet,packetSize));
 
+	// Notify Administrator
 	printf("Generated Packet With Checksum: \n");
-	for(int i = 0; i < decryptedResponseLen;i++)
+	for(uint32_t i = 0; i < decryptedResponseLen;i++)
 	{
 		printf("0x%02X",decryptedResponse[i]);
 		if(i != decryptedResponseLen - 1)
@@ -333,31 +346,40 @@ bool Client::sendPacket(uint8_t * packet, uint32_t packetSize,uint32_t opcode)
 	}
 	printf("\n");
 
-	//encrypt response...
+	// Encrypt Packet
 	crypto[KEY_SERVER]->Encrypt(decryptedResponse,decryptedResponseLen,packetPayloadField,&decryptedResponseLen);
 
-//	printf("Encrypted Packet:\n");
-//	for(int i = 0; i < responseLen;i++)
-//	{
-//		printf("0x%02X",response[i]);
-//		if(i < responseLen - 1)
-//		{
-//			printf(",");
-	//	}
-		
-//	}
-//	printf("\n");
+	// Notify Administrator
+	/*
+	printf("Encrypted Packet:\n");
+	for(int i = 0; i < responseLen;i++)
+	{
+		printf("0x%02X",response[i]);
+		if(i < responseLen - 1)
+		{
+			printf(",");
+		}
+	}
+	printf("\n");
+	*/
 
-	send(socket,(char*)response,responseLen,0);
-	return true;
+	// Send Packet
+	if (send(socket, (char*)response, responseLen, 0) == (int)responseLen)
+	{
+		// Send Success
+		return true;
+	}
 
+	// Send Failure
+	return false;
 }
 
-
+/**
+ * Send the News Category List to the Client
+ * @return Result
+ */
 bool Client::sendNewsCategories()
 {
-
-	
 //	uint8_t uRes[] = {0x00,0x00};
 //	sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_NEWS_GETMENU_FAILED);
 	
@@ -456,10 +478,14 @@ bool Client::sendNewsCategories()
 	sqlite3_finalize(statement);
 	*/
 
-	return true;	
+	return true;
 }
 
-
+/**
+ * Send the News Post List for a set Category to the Client
+ * @param category Category ID
+ * @return Result
+ */
 bool Client::sendNewsPostList(uint16_t category)
 {
 	
@@ -572,7 +598,11 @@ bool Client::sendNewsPostList(uint16_t category)
 	return true;	
 }
 
-
+/**
+ * Send News Post Content for a set Post to the Client
+ * @param postID Post ID
+ * @return Result
+ */
 bool Client::sendNewsPost(uint16_t postID)
 {
 		printf("sending news post!\n");		
@@ -591,7 +621,7 @@ bool Client::sendNewsPost(uint16_t postID)
 		
 		
 		sendPacket30(newsImage,sizeof(newsImage),0x7856);
-		uint8_t uRes[] = {0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x00,0x00};
+		//uint8_t uRes[] = {0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x00,0x00};
 		//sendPacket30(uRes,sizeof(uRes),0x7855);
 
 		//uint8_t uRes3[] = {0x4e,0x43,0x44,0x79,0x73,0x6f,0x6e,0x00};
@@ -629,13 +659,16 @@ bool Client::sendNewsPost(uint16_t postID)
 		
 		
 		*/
-	
-	
+		return true;
 }
 
-
+/**
+ * 0x30 Data Packet Processor
+ * @param args Argument Buffer
+ * @param aSize Argument Length (in Bytes)
+ * @param opcode Internal Packet Opcode
+ */
 void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
-//this is where we process packet 0x30.
 {
 
 	switch (opcode) 
@@ -689,7 +722,6 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			else
 			{
 				uint8_t uRes2[] = {0xde,0xad};
-				opBuster = 0x7015;
 				sendPacket30(uRes2,2,0x78ac);			
 			}
 			break;	
@@ -762,17 +794,11 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			uint8_t * sStatus = (uint8_t*)&sUnk[1];
 			uint8_t * serverID = &sStatus[1];
 
+			// Create Area Server Object
+			this->aServ = new AreaServer(this->socket,this->asExtAddr,this->asLocalAddr,this->asPort,(char*)serverName,serverID,ntohs(*serverLevel),*sStatus,ntohs(*sType));
+
 			//REGISTER AREA SERVER...
-
-			areaServers->push_back(new AreaServer(this->socket,this->asExtAddr,this->asLocalAddr,this->asPort,(char*)serverName,serverID,ntohs(*serverLevel),*sStatus,ntohs(*sType)));			
-
-			if(this->aServ != NULL)
-			{
-				printf("I SUCK AT CODING!\n");
-			}
-
-			//I'm sure there's a better way to get this...
-			this->aServ = areaServers->back();
+			areaServers->push_back(this->aServ);
 
 			break;
 			
@@ -801,7 +827,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		
 		case OPCODE_DATA_AS_PUBLISH_DETAILS3:
 		{
-			uint8_t uRes[] = {0x00,0x00};
+			//uint8_t uRes[] = {0x00,0x00};
 			printf("RECEIVED AREA SERVER PUBLISH3\n");
 
 			break;
@@ -809,7 +835,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 														
 		case OPCODE_DATA_AS_PUBLISH_DETAILS4:
 		{
-			uint8_t uRes[] = {0x00,0x01};
+			//uint8_t uRes[] = {0x00,0x01};
 			printf("RECEIVED AREA SERVER PUBLISH4\n");
 
 			break;
@@ -825,7 +851,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		
 		case OPCODE_DATA_AS_PUBLISH_DETAILS6:
 		{
-			uint8_t uRes[] = {0x00,0x00};
+			//uint8_t uRes[] = {0x00,0x00};
 			printf("RECEIVED AREA SERVER PUBLISH6\n");
 
 			break;
@@ -841,14 +867,14 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			uint16_t * serverLevel = (uint16_t *)&serverName[serverNameLen + 1];
 			uint16_t * sType = &serverLevel[1];
 			uint8_t * sStatus = (uint8_t*)&sType[1];
-			uint8_t * serverID = &sStatus[1];
+			//uint8_t * serverID = &sStatus[1];
 			printf("Set STATUS: %02X\n",*sStatus);			
 			this->aServ->setStatus(*sStatus);
 			this->aServ->setType(ntohs(*sType));
 			this->aServ->setLevel(ntohs(*serverLevel));
 			break;
 		}						
-											
+
 		case OPCODE_DATA_DISKID:
 		{
 			uint8_t uRes[] = {0x78,0x94};
@@ -881,9 +907,8 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			
 		case OPCODE_DATA_SAVEID:								
 		{
-			uint8_t uRes[512] = {0};	
-			
-			snprintf((char *)uRes,512,MOTD);
+			uint8_t uRes[512] = {0};
+			strncpy((char *)uRes, MOTD, sizeof(uRes) - 1);
 			//printf("SENDING: %s\n",uRes);
 			printf("Sending SAVEID_OK\n");
 			//sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_SAVEID_OK);	
@@ -957,7 +982,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		case OPCODE_DATA_SELECT2_CHAR:
 		{
 			printf("RECEIEVED DATA_SELECT2_CHAR\n");
-			uint8_t uRes[] = {0x00,0x00};
+			//uint8_t uRes[] = {0x00,0x00};
 			printf("Sending SELECT2_CHAROK\n");
 			sendPacket30(arg,sizeof(arg),OPCODE_DATA_SELECT2_CHAROK);
 			break;
@@ -1074,7 +1099,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 	//		uint8_t uNum[] = {0x00, 0x01,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x00};
 			uint8_t uNum[] = {0x00,0x00,0x00,0x02,0x00,0x00};
 			
-			uint8_t uCht[] = {0x00,0x00,0x46,0x55,0x43,0x4b,0x00,0x66,0x75,0x63,0x6b,0x00};
+			//uint8_t uCht[] = {0x00,0x00,0x46,0x55,0x43,0x4b,0x00,0x66,0x75,0x63,0x6b,0x00};
 					//		 [id     ] [room name                                                ] [unk    ] [Unk    ] [ Num U ] [St     ?]	
 			uint8_t uRes[] =  {0x00,0x00,0x46,0x61,0x6b,0x65,0x20,0x43,0x68,0x61,0x74,0x20,0x31,0x00,0xFf,0xFf,0xFf,0xFf,0x00,0x01,0x02,0x00,0x00,0x01,0x00,0x02};
 			//uint8_t uRes2[] = {0x00,0x02,0x46,0x61,0x6b,0x65,0x20,0x43,0x68,0x61,0x74,0x20,0x32,0x00,0x31,0x31,0x31,0x00,0x00,0x02,0x00,0x00};
@@ -1377,7 +1402,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 								
 		case OPCODE_DATA_LOBBY_ENTERROOM:
 		{
-			printf("RECEIVED DATA_LOBBY_ENTEROOM\n");
+			printf("RECEIVED DATA_LOBBY_ENTERROOM\n");
 			
 			uint8_t uRes[] = {0x00,0x01};
 			printf("Sending DATA_LOBBY_ENTEROOM_OK");
@@ -1420,12 +1445,12 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			//7009 seems to be "LOBBY_FUNC?"
 			printf("RECEIVED 0x7009\n");
 			printf("sending OK\n");
-			uint8_t uRes[] = {0x00,0x05,0x30,0x00,0x31,0x00,0x32,0x00,0x33,0x00};
-//			sendPacket30(uRes,sizeof(uRes),0x700a);
+			//uint8_t uRes[] = {0x00,0x05,0x30,0x00,0x31,0x00,0x32,0x00,0x33,0x00};
+			//sendPacket30(uRes,sizeof(uRes),0x700a);
 
 			//010002000000000000000000000000000010000000000000ff0000010000003c000000e8030000
 									
-			uint8_t uRes2[] = {0x01,0x00,0x02,0x00,0x30,0x00};
+			//uint8_t uRes2[] = {0x01,0x00,0x02,0x00,0x30,0x00};
 			uint8_t uRes3[] = {0x00,0x01,0x00,0x01, 0x30,0x31,0x32,0x33,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x40,0x00,0x00,0x00,0x00,0x00,0xff,0xff,0x00,0x00,0x01,0x00,0x00,0x00,0x3c,0x00,0x00,0x00,0xe7,0x03,0x00,0x00};
 			sendPacket30(uRes3,sizeof(uRes3),0x7009);
 //			sendPacket30(uRes2,sizeof(uRes2),0x740b);
@@ -1964,7 +1989,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			//get guild info after creation
 			//arg is the guildID
 			printf("Get Guild Info(Post Creation REQ)!\n");
-			uint16_t gID = ntohs(*(uint16_t*)(arg));
+			//uint16_t gID = ntohs(*(uint16_t*)(arg));
 			
 			
 			
@@ -2159,32 +2184,30 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 												
 		case OPCODE_DATA_LOGON_REPEAT:
 		{
-
-			
-				switch (this->clientType)
+			switch (this->clientType)
+			{
+				case CLIENTTYPE_GAME:
 				{
-					case CLIENTTYPE_GAME:
-					{
-						printf("GAME CLIENT LOGGING IN!\n");
-						break;
-					}
-					
-					case CLIENTTYPE_AREASERVER:
-					{
-						printf("AREA SERVER LOGGING IN!\n");
-
-						uint8_t uRes[] = {0x02,0x10};
-						sendPacket30(uRes,sizeof(uRes),0x7001);
-						break;					
-					}	
-					
-					
-					default:
-					{
-						printf("UNKNOWN CLIENT TYPE LOGGING ON!\n");
-						break;
-					}
+					printf("GAME CLIENT LOGGING IN!\n");
+					break;
 				}
+				
+				case CLIENTTYPE_AREASERVER:
+				{
+					printf("AREA SERVER LOGGING IN!\n");
+
+					uint8_t uRes[] = {0x02,0x10};
+					sendPacket30(uRes,sizeof(uRes),0x7001);
+					break;					
+				}	
+				
+				
+				default:
+				{
+					printf("UNKNOWN CLIENT TYPE LOGGING ON!\n");
+					break;
+				}
+			}
 		
 			printf("Recieved DATA_LOGON_REPEAT\n");
 								
@@ -2197,12 +2220,12 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			break;							
 		}						
 	}
-
-	
-	
 }
 
-
+/**
+ * Process accumulated Packets on the RX Buffer
+ * @return Processing Result
+ */
 bool Client::ProcessRXBuffer()
 {
 
@@ -2349,29 +2372,11 @@ bool Client::ProcessRXBuffer()
 						
 						// Calculate Checksum
 						*checksumField = htons(Crypto::Checksum((uint8_t *)&checksumField[1], sizeof(decryptedResponse) - sizeof(*checksumField)));
-
-						printf("PRE_PACKET\n");
-						for(uint32_t i = 0; i < sizeof(decryptedResponse); i++)
-						{
-							printf("0x%02X",decryptedResponse[i]);
-							if( i != sizeof(decryptedResponse) - 1) printf(", ");
-							
-						}
-							
-						printf("\n");					
-																		
-																														
+																							
 						// Encrypt Response
 						uint32_t packetPayloadFieldSize = sizeof(response) - sizeof(*packetLengthField) - sizeof(*packetOpcodeField);
 						crypto[KEY_SERVER]->Encrypt(decryptedResponse, sizeof(decryptedResponse), packetPayloadField, &packetPayloadFieldSize);
 
-						for(uint32_t i = 0; i < sizeof(response); i++)
-						{
-							printf("0x%02X",response[i]);
-							if(i != sizeof(response) - 1) printf(",");
-						}
-												
-																								
 						// Send Response
 						send(socket, response, sizeof(response), 0);
 
@@ -2436,6 +2441,10 @@ bool Client::ProcessRXBuffer()
 							return false;
 						}
 
+						// Free Memory of previous Crypto Handler
+						delete crypto[KEY_CLIENT];
+						delete crypto[KEY_SERVER];
+
 						// Activate Keys
 						crypto[KEY_CLIENT] = crypto[KEY_CLIENT_PENDING];
 						crypto[KEY_SERVER] = crypto[KEY_SERVER_PENDING];
@@ -2462,16 +2471,16 @@ bool Client::ProcessRXBuffer()
 							return false;
 						}
 
-						//Extract ClientSeg-Count
+						// Extract Client Segment Number
 						uint32_t newSeg = ntohl(*(uint32_t *)(decryptedPacket + sizeof(uint16_t)));
 
+						// Invalid Segment Number
 						if (newSeg <= this->segClient)
 						{
-							printf("The Client's Segment was less than or equal to the last one!");
-							//return false;
+							printf("The Client's Segment Number was less than or equal to the last one (%d <= %d)!", newSeg, this->segClient);
+							return false;
 						}
-																		
-						
+
 						// Extract Argument Length
 						uint16_t argumentLength = ntohs(*(uint16_t *)(decryptedPacket + sizeof(uint16_t) + sizeof(uint32_t)));
 
@@ -2499,20 +2508,17 @@ bool Client::ProcessRXBuffer()
 						}
 
 						// Extract Argument
-
 						uint8_t * argument = decryptedPacket + sizeof(uint16_t) + sizeof(uint32_t) + sizeof(uint16_t) + sizeof(uint16_t);
 
-						// Output Segment
+						// Output Client Segment Number
 						printf("Client Segment: 0x%02X\n",newSeg);
+
+						// Update Client Segment Number in Object
 						this->segClient = newSeg;
 						
 						// Output Internal Opcode
 						printf("Internal Opcode: 0x%02X\n", internalOpcode);
 
-
-	
-
-												
 						// Output Argument Data
 						argumentLength -= sizeof(uint16_t);
 						printf("Argument Data:\n");
@@ -2523,24 +2529,23 @@ bool Client::ProcessRXBuffer()
 						}
 						printf("\n");
 
+						// Append Log to Logfile
 						if(this->enableLogging)
 						{
-
 							char lBuff[16];
 							sprintf(lBuff,"%02X",internalOpcode);
-							this->logFile << "Recieved 0x30_0x" << lBuff << " ";
+							this->logFile << "Received 0x30_0x" << lBuff << " ";
 							sprintf(lBuff,"0x%02X",decryptedPacketLength);
 							this->logFile << lBuff << " bytes of data\n\t";
-						
-							for(int i = 0;i<decryptedPacketLength;i++)
+							for(uint32_t i = 0; i < decryptedPacketLength; i++)
 							{
 								sprintf(lBuff,"%02X ",decryptedPacket[i]);
 								this->logFile << lBuff;
 							}
-			
-							this->logFile <<	"\n";
+							this->logFile << "\n";
 						}
 
+						// Process 0x30 Data Packet Contents
 						processPacket30((uint8_t*)argument, (uint16_t)argumentLength, (uint16_t)internalOpcode);						
 
 						// Break Switch
@@ -2593,6 +2598,10 @@ bool Client::ProcessRXBuffer()
 	return true;
 }
 
+/**
+ * Read Client Timeout Status
+ * @return Timeout Status
+ */
 bool Client::IsTimedOut()
 {
 	// Calculate Delta Time

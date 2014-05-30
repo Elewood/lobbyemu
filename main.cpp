@@ -11,7 +11,6 @@
 #include <unistd.h>
 #include "server.h"
 #include "error.h"
-//#include "sqlite3.h"
 #include <iostream>
 #include <areaServer.h>
 #include <list>
@@ -50,10 +49,7 @@ modifiers, use ; to cat them!
 22 normal intensity
 25 blink off
 27 reverse video off
-
 */
-
-
 
 // Server Status
 int _status = 0;
@@ -65,13 +61,8 @@ void change_blocking_mode(int fd, int nonblocking);
 int create_listen_socket(uint16_t port);
 int server_loop(int server);
 
-//I'm developing on android, and had sqlite3 on hand.
-//sqlite3 *srvDatabase;
-
-//I know...
+// Area Server List
 std::list<AreaServer *> * areaServers;
-
-
 
 /**
  * Entry Point
@@ -90,43 +81,6 @@ int main(int argc, char * argv[])
 
 	// Create Listening Socket
 	int server = create_listen_socket(49000);
-
-
-/*
-	int dbRes = sqlite3_open("lobbyServer.db", &srvDatabase);
-	if(dbRes != SQLITE_OK)
-	{
-		printf("ERROR OPENING DB");
-		return dbRes;
-	}
-
-	sqlite3_stmt *statement;
-	if(sqlite3_prepare(srvDatabase,"SELECT name FROM LOBBIES;", -1,&statement, 0) == SQLITE_OK)
-	{
-		int cols = sqlite3_column_count(statement);
-		int result = 0;
-		while(true)
-		{
-			result = sqlite3_step(statement);
-			
-			if(result == SQLITE_ROW)
-			{
-//				vector<string> values;
-				for(int col = 0; col < cols; col++)
-				{
-					printf("\tDBLOBBIES: %s\n",(char*)sqlite3_column_text(statement,col));
-					//values.push_back((char*)sqlite3_column_text(statement,col));
-				}
-				
-			}
-			else
-			{
-				break;
-			}
-		}
-		sqlite3_finalize(statement);
-	}
-*/
 
 	// Created Listening Socket
 	if(server != -1)
@@ -230,17 +184,18 @@ int create_listen_socket(uint16_t port)
 			// Switch Socket into Listening Mode
 			listen(fd, 10);
 			
-			
+			// Prevent Timeout while stepping through Debugger
+			/*
 			int kOpt = 1;
 			int kAI = 1;
 			int kCnt = 100;
 			int kI = 1;
 			
-			
-//			setsockopt(fd, SOL_SOCKET,SO_KEEPALIVE, &kOpt, sizeof(int));
-	//		setsockopt(fd, SOL_TCP,TCP_KEEPINTVL, &kAI, sizeof(int));
-//			setsockopt(fd, SOL_TCP, TCP_KEEPCNT, &kCnt, sizeof(int));
-//			setsockopt(fd, SOL_TCP, TCP_KEEPIDLE, &kI, sizeof(int));
+			setsockopt(fd, SOL_SOCKET,SO_KEEPALIVE, &kOpt, sizeof(int));
+			setsockopt(fd, SOL_TCP,TCP_KEEPINTVL, &kAI, sizeof(int));
+			setsockopt(fd, SOL_TCP, TCP_KEEPCNT, &kCnt, sizeof(int));
+			setsockopt(fd, SOL_TCP, TCP_KEEPIDLE, &kI, sizeof(int));
+			*/
 			
 			// Return Socket
 			return fd;
@@ -270,7 +225,6 @@ int server_loop(int server)
 	// Set Running Status
 	_status = 1;
 
-	std::string inp;
 	// Handling Loop
 	while(_status == 1)
 	{
@@ -282,8 +236,6 @@ int server_loop(int server)
 			// Accept Connections
 			do
 			{
-				
-
 				// Prepare Address Structure
 				struct sockaddr_in addr;
 				socklen_t addrlen = sizeof(addr);
@@ -299,7 +251,7 @@ int server_loop(int server)
 					change_blocking_mode(acceptResult, 1);
 
 					// Output Information
-					printf("\033[32mAccepted Client into Server! - IP:%s\033[0m\n",inet_ntoa(addr.sin_addr));
+					printf("\033[32mAccepted Client into Server! - IP:%s\033[0m\n", inet_ntoa(addr.sin_addr));
 
 					// Add Connection to Client List
 					Server::getInstance()->GetClientList()->push_back(new Client(acceptResult,addr.sin_addr.s_addr));
@@ -320,29 +272,29 @@ int server_loop(int server)
 			int recvResult = recv(client->GetSocket(), client->GetRXBuffer(true), client->GetFreeRXBufferSize(), 0);
 
 			// Connection was closed or timed out
-			if(recvResult == 0 || (recvResult == -1 && errno != EAGAIN && errno != EWOULDBLOCK || client->IsTimedOut()))
+			if(recvResult == 0 || (recvResult == -1 && errno != EAGAIN && errno != EWOULDBLOCK) || client->IsTimedOut())
 			{
-
-				//check to see if the client is an area server...
-				for(std::list<AreaServer *>::iterator asi = areaServers->begin();asi != areaServers->end();)
+				// Check if Client was an Area Server
+				for(std::list<AreaServer *>::iterator asi = areaServers->begin(); asi != areaServers->end(); asi++)
 				{
-					AreaServer* as = *asi;
+					// Extract Area Server Object
+					AreaServer * as = *asi;
+
+					// Client identified as an Area Server
 					if(as->socket == client->GetSocket())
 					{
-						//remove it from the list...
-						areaServers->erase(asi++);
+						// Remove it from the active Area Server List
+						areaServers->erase(asi);
 						
+						// Free Memory
 						delete as;
+
+						// Notify Administrator
 						printf("REMOVED AREA SERVER FROM LIST!\n");
-						continue;
-					}					
-					
-					asi++;
+					}
 				}
 
-
-				
-				// Remove User from List
+				// Remove Client from List
 				clients->erase(it++);
 
 				// Free Memory
