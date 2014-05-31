@@ -46,7 +46,7 @@ AreaServer::AreaServer(int socket, uint32_t eIp, uint32_t lIp, uint32_t port, ch
 	this->serverType = sType;
 
 	// Notify Administrator
-	printf("REGISTERING AREA SERVER: %s, ID:%08X, STATUS:%02X, LEVEL:%02X, USERS:%02X, TYPE: %02X\n",this->serverName, (uint32_t)this->serverId,this->serverStatus,this->serverLevel,this->serverUsers, this->serverType);
+	printf("REGISTERING AREA SERVER: %s, STATUS:%02X, LEVEL:%02X, USERS:%02X, TYPE: %02X\n",this->serverName,(uint32_t)this->serverStatus,(uint32_t)this->serverLevel,(uint32_t)this->serverUsers, (uint32_t)this->serverType);
 }
 
 /**
