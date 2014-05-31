@@ -275,7 +275,7 @@ int server_loop(int server)
 			if(recvResult == 0 || (recvResult == -1 && errno != EAGAIN && errno != EWOULDBLOCK) || client->IsTimedOut())
 			{
 				// Check if Client was an Area Server
-				for(std::list<AreaServer *>::iterator asi = areaServers->begin(); asi != areaServers->end(); asi++)
+				for(std::list<AreaServer *>::iterator asi = areaServers->begin(); asi != areaServers->end(); /* Handled in Code */)
 				{
 					// Extract Area Server Object
 					AreaServer * as = *asi;
@@ -284,14 +284,20 @@ int server_loop(int server)
 					if(as->socket == client->GetSocket())
 					{
 						// Remove it from the active Area Server List
-						areaServers->erase(asi);
+						areaServers->erase(asi++);
 						
 						// Free Memory
 						delete as;
 
 						// Notify Administrator
 						printf("REMOVED AREA SERVER FROM LIST!\n");
+
+						// Stop Search
+						break;
 					}
+
+					// Move to next Area Server
+					asi++;
 				}
 
 				// Remove Client from List

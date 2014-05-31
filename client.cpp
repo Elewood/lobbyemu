@@ -161,7 +161,7 @@ void Client::MoveRXPointer(int delta)
 		this->lastHeartbeat = time(NULL);
 
 		// Log Event
-		printf("Added %d bytes to RX Buffer!\n", delta);
+		// printf("Added %d bytes to RX Buffer!\n", delta);
 	}
 
 	// Processed Data
@@ -177,7 +177,7 @@ void Client::MoveRXPointer(int delta)
 		this->rxBufferPosition -= delta;
 
 		// Log Event
-		printf("Erased %d bytes from RX Buffer\n", delta);
+		// printf("Erased %d bytes from RX Buffer\n", delta);
 	}
 }
 
@@ -2254,6 +2254,7 @@ bool Client::ProcessRXBuffer()
 			if(packetLength > 0)
 			{
 				// Output Encrypted Data
+				/*
 				printf("Encrypted Data: ");
 				for(int i = 0; i < packetLength; i++)
 				{
@@ -2261,6 +2262,7 @@ bool Client::ProcessRXBuffer()
 					if(i != packetLength - 1) printf(", ");
 				}
 				printf("\n");
+				*/
 
 				// Decrypt Data
 				uint8_t decryptedPacket[0x500a];
@@ -2268,6 +2270,7 @@ bool Client::ProcessRXBuffer()
 				crypto[KEY_CLIENT]->Decrypt(encryptedPacket, packetLength, decryptedPacket, &decryptedPacketLength);
 
 				// Output Decrypted Data
+				/*
 				printf("Decrypted Data: ");
 				for(uint32_t i = 0; i < decryptedPacketLength; i++)
 				{
@@ -2275,6 +2278,7 @@ bool Client::ProcessRXBuffer()
 					if(i != decryptedPacketLength - 1) printf(", ");
 				}
 				printf("\n");
+				*/
 
 				// Invalid Packet Length (body is never < 4)
 				if(decryptedPacketLength < 4)
