@@ -134,13 +134,15 @@ bool AreaServer::GetServerLine(uint8_t * output,uint16_t outputLen, uint32_t cli
 	{
 		// Use Local IP Address
 		*sAddr = this->serverIPLocal;
+		printf("Handed out Local Area Server IP Address: %08X\n", this->serverIPLocal);
 	}
 
 	// Server & Client belong to different IP Addresses
 	else
 	{
 		// Use Public IP Address
-		*sAddr = this->serverIPExt;
+		*sAddr = ntohl(this->serverIPExt);
+		printf("Handed out Public Area Server IP Address: %08X\n", this->serverIPExt);
 	}
 	
 	// Set Server Port
