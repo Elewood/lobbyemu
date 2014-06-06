@@ -85,7 +85,7 @@ class Client
 	uint16_t clientType;
 
 	// .hack//frägment DNAS Disc ID (dummied pretty much)
-	char diskID[64];
+	char diskID[65];
 
 	// .hack//frägment System Save ID
 	char saveID[21];

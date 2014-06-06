@@ -1014,11 +1014,11 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 							if (greeting < (char *)(arg + aSize))
 							{
 								// Prevent non-critical but annoying invalid data Hacking Attempts
-								if (*characterLevel >= MIN_CHARACTER_LEVEL && *characterLevel <= MAX_CHARACTER_LEVEL)
+								if (ntohs(*characterLevel) >= MIN_CHARACTER_LEVEL && ntohs(*characterLevel) <= MAX_CHARACTER_LEVEL)
 								{
 									// Store Data into Client Object
 									this->activeCharacterClass = *characterClass;
-									this->activeCharacterLevel = *characterLevel;
+									this->activeCharacterLevel = ntohs(*characterLevel);
 									strncpy(this->activeCharacterSaveID, saveID, sizeof(this->activeCharacterSaveID));
 									strncpy(this->activeCharacter, characterName, sizeof(this->activeCharacter));
 									strncpy(this->activeCharacterGreeting, greeting, sizeof(this->activeCharacterGreeting));
@@ -2381,7 +2381,7 @@ bool Client::ProcessRXBuffer()
 		webClientHandler:
 
 		// Minimum HTTP Request Length
-		uint32_t minHTTPReqLength = strlen("GET /test.txt HTTP/1.1\r\n\r\n");
+		uint32_t minHTTPReqLength = strlen("GET / HTTP/1.1\r\n\r\n");
 
 		// Incomplete HTTP Request
 		if (this->rxBufferPosition < minHTTPReqLength)
@@ -2397,9 +2397,6 @@ bool Client::ProcessRXBuffer()
 
 		// Terminate HTTP Request String
 		this->rxBuffer[this->rxBufferPosition + 1] = 0;
-
-		// Output HTTP Request String
-		printf("HTTP Request:\n%s\n", (char *)this->rxBuffer);
 
 		// Figure out what the user wants
 		char * requestedPage = NULL;
@@ -2467,11 +2464,10 @@ bool Client::ProcessRXBuffer()
 			sprintf(serverStatus + strlen(serverStatus), "Character: %s / %s / %s / %s (%s Level %u)\n", client->diskID, client->saveID, client->activeCharacterSaveID, client->activeCharacter, classNames[client->activeCharacterClass], client->activeCharacterLevel);
 		}
 
-		// Iterate Area Server
-		
+		// TODO Iterate Area Server
 
 		// Output Server Status information via HTTP
-		sendHTTP(serverStatus, strlen(serverStatus), (char *)"text/html");
+		sendHTTP(serverStatus, strlen(serverStatus), (char *)"text/plain");
 
 		// Free Memory
 		delete [] serverStatus;

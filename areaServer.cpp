@@ -141,7 +141,7 @@ bool AreaServer::GetServerLine(uint8_t * output,uint16_t outputLen, uint32_t cli
 	else
 	{
 		// Use Public IP Address
-		*sAddr = ntohl(this->serverIPExt);
+		*sAddr = htonl(this->serverIPExt);
 		printf("Handed out Public Area Server IP Address: %08X\n", this->serverIPExt);
 	}
 	
