@@ -40,6 +40,9 @@ Server::Server()
 {
 	// Create Client List
 	clients = new std::list<Client *>();
+
+	// Create Area Server List
+	areaServers = new std::list<AreaServer *>();
 }
 
 /**
@@ -72,5 +75,15 @@ std::list<Client *> * Server::GetClientList()
 {
 	// Return Client List
 	return clients;
+}
+
+/**
+ * Get Area Server List from Server
+ * @return Area Server List
+ */
+std::list<AreaServer *> * Server::GetAreaServerList()
+{
+	// Return Area Server List
+	return areaServers;
 }
 

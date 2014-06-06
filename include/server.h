@@ -14,6 +14,9 @@ class Server
 	// Internal Client List
 	std::list<Client *> * clients;
 
+	// Internal Area Server List
+	std::list<AreaServer *> * areaServers;
+
 	/**
 	 * Server Constructor
 	 */
@@ -42,6 +45,12 @@ class Server
 	 * @return Client List
 	 */
 	std::list<Client *> * GetClientList();
+
+	/**
+	 * Get Area Server List from Server
+	 * @return Area Server List
+	 */
+	std::list<AreaServer *> * GetAreaServerList();
 };
 
 #endif

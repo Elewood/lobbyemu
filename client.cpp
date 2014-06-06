@@ -12,9 +12,6 @@
 #include <list>
 #include "ccsNewsImage.h"
 
-// Area Server List
-extern std::list<AreaServer *> * areaServers;
-
 // Class Names
 char * classNames[CLASS_WAVEMASTER + 1] = {
 	(char *)"Twin Blade",
@@ -809,7 +806,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			this->aServ = new AreaServer(this->socket,this->asExtAddr,this->asLocalAddr,this->asPort,(char*)serverName,serverID,ntohs(*serverLevel),*sStatus,ntohs(*sType));
 
 			//REGISTER AREA SERVER...
-			areaServers->push_back(this->aServ);
+			Server::getInstance()->GetAreaServerList()->push_back(this->aServ);
 
 			break;
 			
@@ -1624,7 +1621,8 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			printf("RECEIVED DATA_LOBBY_GETSERVERS_GETLIST\n");
 			
 			if(lID == 0x01)
-			{	
+			{
+				std::list<AreaServer *> * areaServers = Server::getInstance()->GetAreaServerList();
 				uint8_t rServerNum[2];
 				uint16_t * numServers = (uint16_t*)rServerNum;
 				*numServers = htons(areaServers->size());
@@ -2349,6 +2347,13 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 	}
 }
 
+/**
+ * Wraps Data into a HTTP GET Response Packet and sends it
+ * @param buffer HTTP Page Content (usually text)
+ * @param bufferLength HTTP Page Content Length (in Bytes)
+ * @param contentType HTTP Content Mimetype (ex. "text/html")
+ * @return Result
+ */
 bool Client::sendHTTP(char * buffer, uint32_t bufferLength, char * contentType)
 {
 	// Allocate Memory
@@ -2432,6 +2437,9 @@ bool Client::ProcessRXBuffer()
 		char * serverStatus = new char[1024 * clients->size()];
 		memset(serverStatus, 0, 1024 * clients->size());
 
+		// Output Player List Header
+		sprintf(serverStatus + strlen(serverStatus), "Player List:\n");
+
 		// Client Ghost Counter
 		uint32_t ghostClients = 0;
 		
@@ -2458,6 +2466,9 @@ bool Client::ProcessRXBuffer()
 			// Output Client Information
 			sprintf(serverStatus + strlen(serverStatus), "Character: %s / %s / %s / %s (%s Level %u)\n", client->diskID, client->saveID, client->activeCharacterSaveID, client->activeCharacter, classNames[client->activeCharacterClass], client->activeCharacterLevel);
 		}
+
+		// Iterate Area Server
+		
 
 		// Output Server Status information via HTTP
 		sendHTTP(serverStatus, strlen(serverStatus), (char *)"text/html");

@@ -61,9 +61,6 @@ void change_blocking_mode(int fd, int nonblocking);
 int create_listen_socket(uint16_t port);
 int server_loop(int server);
 
-// Area Server List
-std::list<AreaServer *> * areaServers;
-
 /**
  * Entry Point
  * @param argc Number of Arguments
@@ -88,9 +85,6 @@ int main(int argc, char * argv[])
 		// Notify User
 		printf("Listening for Connections on TCP Port 49000.\n");
 
-		//Dunno where else to put this... Just needs to work... for now...
-		areaServers = new std::list<AreaServer *>();
-		
 		// Enter Server Loop
 		errorCode = server_loop(server);
 
@@ -274,6 +268,9 @@ int server_loop(int server)
 			// Connection was closed or timed out
 			if(recvResult == 0 || (recvResult == -1 && errno != EAGAIN && errno != EWOULDBLOCK) || client->IsTimedOut())
 			{
+				// Fetch Area Server List from Server
+				std::list<AreaServer *> * areaServers = Server::getInstance()->GetAreaServerList();
+
 				// Check if Client was an Area Server
 				for(std::list<AreaServer *>::iterator asi = areaServers->begin(); asi != areaServers->end(); /* Handled in Code */)
 				{
