@@ -14,6 +14,16 @@
 #define KEY_CLIENT_PENDING 2
 #define KEY_SERVER_PENDING 3
 
+#define MIN_CHARACTER_LEVEL 1
+#define MAX_CHARACTER_LEVEL 99
+
+#define CLASS_TWINBLADE 0
+#define CLASS_BLADEMASTER 1
+#define CLASS_HEAVYBLADE 2
+#define CLASS_HEAVYAXE 3
+#define CLASS_LONGARM 4
+#define CLASS_WAVEMASTER 5
+
 // Message of the Day
 extern const char * MOTD;
 
@@ -45,12 +55,6 @@ class Client
 	// Area Server Port
 	uint16_t asPort; // acquired through Socket Context
 	
-	// .hack//frägment DNAS Disc ID (dummied pretty much)
-	char diskID[65];
-
-	// .hack//frägment Save ID
-	char saveID[21];
-
 	// Network Logging Bit
 	bool enableLogging;
 
@@ -58,10 +62,10 @@ class Client
 	Crypto * crypto[4];
 
 	// RX Buffer Length
-	int rxBufferLength;
+	uint32_t rxBufferLength;
 
 	// RX Buffer Pointer
-	int rxBufferPosition;
+	uint32_t rxBufferPosition;
 
 	// RX Buffer
 	uint8_t * rxBuffer;
@@ -79,6 +83,27 @@ class Client
 
 	// Client Type (CLIENTTYPE_GAME for PS2 or CLIENTTYPE_AREASERVER for PC)
 	uint16_t clientType;
+
+	// .hack//frägment DNAS Disc ID (dummied pretty much)
+	char diskID[64];
+
+	// .hack//frägment System Save ID
+	char saveID[21];
+
+	// .hack//frägment Character Save ID
+	char activeCharacterSaveID[21];
+
+	// Currently selected Character (inside of Lobby)
+	char activeCharacter[64];
+
+	// Greeting Message of the currently selected Character (inside of Lobby)
+	char activeCharacterGreeting[256];
+
+	// Class of the currently selected Character (inside of Lobby)
+	uint8_t activeCharacterClass;
+
+	// Level of the currently selected Character (inside of Lobby)
+	uint16_t activeCharacterLevel;
 
 	// Logfile Stream
 	clOfstream logFile;
@@ -157,6 +182,15 @@ class Client
 	 * @return Result
 	 */
 	bool sendPacket(uint8_t * packet, uint32_t packetSize, uint32_t opcode);
+
+	/**
+	 * Wraps Data into a HTTP GET Response Packet and sends it
+	 * @param buffer HTTP Page Content (usually text)
+	 * @param bufferLength HTTP Page Content Length (in Bytes)
+	 * @param contentType HTTP Content Mimetype (ex. "text/html")
+	 * @return Result
+	 */
+	bool sendHTTP(char * buffer, uint32_t bufferLength, char * contentType);
 
 	/**
 	 * Send the News Category List to the Client

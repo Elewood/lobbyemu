@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include "opcode.h"
 #include "client.h"
+#include "server.h"
 #include <ctime>
 #include "areaServer.h"
 #include <list>
@@ -13,6 +14,16 @@
 
 // Area Server List
 extern std::list<AreaServer *> * areaServers;
+
+// Class Names
+char * classNames[CLASS_WAVEMASTER + 1] = {
+	(char *)"Twin Blade",
+	(char *)"Blademaster",
+	(char *)"Heavy Blade",
+	(char *)"Heavy Axe",
+	(char *)"Long Arm",
+	(char *)"Wavemaster"
+};
 
 /**
  * Creates a Crypto-Client Network Channel
@@ -877,6 +888,29 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 
 		case OPCODE_DATA_DISKID:
 		{
+			// Argument given (everything else has to be a hacking attempt and will be ignored here)
+			if (aSize >= 74)
+			{
+				// Terminate Packet (to prevent possible overflow through hacking attempt)
+				arg[aSize - 1] = 0;
+
+				// Cast Arguments
+				char * diskID = (char *)arg;
+				char * staticText = diskID + strlen(diskID) + 1;
+
+				// Prevent Disk ID Overflow Hack
+				if (staticText < (char *)(arg + aSize))
+				{
+					// Valid Static Text
+					if (strcmp(staticText, "dot_hack") == 0)
+					{
+						// Store Data into Client Object
+						strncpy(this->diskID, diskID, sizeof(this->diskID));
+					}
+				}
+			}
+
+			// Send Default Response
 			uint8_t uRes[] = {0x78,0x94};
 			printf("Sending DISKID_OK\n");
 			sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_DISKID_OK);
@@ -952,16 +986,73 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		
 		case OPCODE_DATA_REGISTER_CHAR:
 		{
+			// Argument given (everything else has to be a hacking attempt and will be ignored here)
+			if (aSize > 7)
+			{
+				// Terminate Packet (to prevent possible overflow through hacking attempt)
+				arg[aSize - 1] = 0;
+
+				// Cast Arguments
+				uint8_t * saveSlot = arg;
+				char * saveID = (char *)saveSlot + 1;
+				char * characterName = saveID + strlen(saveID) + 1;
+
+				// Prevent Save ID Overflow Hacking Attempts
+				if (characterName < (char *)(arg + aSize))
+				{
+					// Cast Arguments
+					uint8_t * characterClass = (uint8_t *)characterName + strlen(characterName) + 1;
+
+					// Prevent Character Name Overflow Hacking Attempts
+					if (characterClass < (arg + aSize))
+					{
+						// Prevent Character Class Index Overflow Hacking Attempts
+						if (*characterClass >= CLASS_TWINBLADE && *characterClass <= CLASS_WAVEMASTER)
+						{
+							// Cast Arguments
+							uint16_t * characterLevel = (uint16_t *)(characterClass + 1);
+							char * greeting = (char *)&characterLevel[1];
+
+							// Prevent Followup Character Name Overflow Hacking Attempts
+							if (greeting < (char *)(arg + aSize))
+							{
+								// Prevent non-critical but annoying invalid data Hacking Attempts
+								if (*characterLevel >= MIN_CHARACTER_LEVEL && *characterLevel <= MAX_CHARACTER_LEVEL)
+								{
+									// Store Data into Client Object
+									this->activeCharacterClass = *characterClass;
+									this->activeCharacterLevel = *characterLevel;
+									strncpy(this->activeCharacterSaveID, saveID, sizeof(this->activeCharacterSaveID));
+									strncpy(this->activeCharacter, characterName, sizeof(this->activeCharacter));
+									strncpy(this->activeCharacterGreeting, greeting, sizeof(this->activeCharacterGreeting));
+								}
+							}
+						}
+					}
+				}
+			}
+
+			// Notify Administrator
 			printf("RECEIVED DATA_REGISTER_CHAR!\n");
+
+			// Send Default Response to Client
 			uint8_t uRes[] = {0x00,0x00};
 			printf("Sending REGISTER_CHAROK\n");
-			sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_REGISTER_CHAROK);		
+			sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_REGISTER_CHAROK);
 			break;				
 		}
 		
 		
 		case OPCODE_DATA_UNREGISTER_CHAR:
 		{
+			// Wipe Character Identification Data from Object
+			this->activeCharacterClass = CLASS_TWINBLADE;
+			this->activeCharacterLevel = 0;
+			memset(this->activeCharacterSaveID, 0, sizeof(this->activeCharacterSaveID));
+			memset(this->activeCharacter, 0, sizeof(this->activeCharacter));
+			memset(this->activeCharacterGreeting, 0, sizeof(this->activeCharacterGreeting));
+
+			// Send Default Response to Client
 			printf("RECEIVED DATA_UNREGISTER_CHAR\n");
 			uint8_t uRes[] = {0x00,0x00};
 			printf("Sending UNREGISTER_CHAROK\n");
@@ -971,7 +1062,42 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		
 		case OPCODE_DATA_SELECT_CHAR:
 		{
-			printf("RECEIEVED DATA_SELECT_CHAR\n");
+			// Argument given (everything else has to be a hacking attempt and will be ignored here)
+			if (aSize > 0)
+			{
+				// Terminate Packet (to prevent possible overflow through hacking attempt)
+				arg[aSize - 1] = 0;
+
+				// Cast Arguments
+				char * diskID = (char *)arg;
+				char * saveID = diskID + strlen(diskID) + 1;
+
+				// Prevent Disk ID Overflow Hacking Attempts
+				if (saveID < (char *)(arg + aSize))
+				{
+					// Cast Arguments
+					uint8_t * unk1 = (uint8_t *)saveID + strlen(saveID) + 1;
+
+					// Prevent Save ID Overflow Hacking Attempts
+					if (unk1 < (arg + aSize))
+					{
+						// Cast Arguments
+						char * characterSaveID = (char *)&unk1[1];
+
+						// Prevent Followup Save ID Hacking Attempts
+						if (characterSaveID < (char *)(arg + aSize))
+						{
+							// Store Data into Client Object
+							strncpy(this->diskID, diskID, sizeof(this->diskID));
+							strncpy(this->saveID, saveID, sizeof(this->saveID));
+							strncpy(this->activeCharacterSaveID, characterSaveID, sizeof(this->activeCharacterSaveID));
+						}
+					}
+				}
+			}
+
+			// Send Default Response to Client
+			printf("RECEIVED DATA_SELECT_CHAR\n");
 			uint8_t uRes[] = {0x00,0x00};
 			printf("Sending SELECT_CHAROK\n");
 			sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_SELECT_CHAROK);
@@ -981,7 +1107,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		
 		case OPCODE_DATA_SELECT2_CHAR:
 		{
-			printf("RECEIEVED DATA_SELECT2_CHAR\n");
+			printf("RECEIVED DATA_SELECT2_CHAR\n");
 			//uint8_t uRes[] = {0x00,0x00};
 			printf("Sending SELECT2_CHAROK\n");
 			sendPacket30(arg,sizeof(arg),OPCODE_DATA_SELECT2_CHAROK);
@@ -2223,377 +2349,508 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 	}
 }
 
+bool Client::sendHTTP(char * buffer, uint32_t bufferLength, char * contentType)
+{
+	// Allocate Memory
+	char httpHeader[512];
+	sprintf(httpHeader, "HTTP/1.1 200 OK\r\nContent-Length: %u\r\nContent-Type: %s\r\n\r\n", bufferLength, contentType);
+	
+	// Send Data
+	int headerSend = send(socket, httpHeader, strlen(httpHeader), 0);
+	int dataSend = send(socket, buffer, bufferLength, 0);
+
+	// Return Result
+	return headerSend == (int)strlen(httpHeader) && dataSend == (int)bufferLength;
+}
+
 /**
  * Process accumulated Packets on the RX Buffer
  * @return Processing Result
  */
 bool Client::ProcessRXBuffer()
 {
-	// Data available in RX Buffer
-	while(this->rxBufferPosition > 2)
+	// Webclient Processing
+	if (this->clientType == CLIENTTYPE_WEBCLIENT)
 	{
-		// Extract Packet Length
-		uint16_t packetLength = ntohs(*(uint16_t *)this->rxBuffer);
+		// Yeah it's a goto mark, bite me.
+		webClientHandler:
 
-		// Packet available in RX Buffer
-		if(this->rxBufferPosition >= (int)(sizeof(uint16_t) + packetLength))
+		// Minimum HTTP Request Length
+		uint32_t minHTTPReqLength = strlen("GET /test.txt HTTP/1.1\r\n\r\n");
+
+		// Incomplete HTTP Request
+		if (this->rxBufferPosition < minHTTPReqLength)
+			return true;
+
+		// Incomplete HTTP Request (no newline suffix yet)
+		if (strncmp((char *)(this->rxBuffer + this->rxBufferPosition - strlen("\r\n\r\n")), "\r\n\r\n", strlen("\r\n\r\n")) != 0)
+			return true;
+		
+		// Terminating HTTP Request String not possible (buffer overrun check)
+		if (this->rxBufferPosition == rxBufferLength)
+			return false;
+
+		// Terminate HTTP Request String
+		this->rxBuffer[this->rxBufferPosition + 1] = 0;
+
+		// Output HTTP Request String
+		printf("HTTP Request:\n%s\n", (char *)this->rxBuffer);
+
+		// Figure out what the user wants
+		char * requestedPage = NULL;
+		for (uint32_t i = 0; i < this->rxBufferPosition; i++)
 		{
-			// Extract Packet Opcode
-			uint16_t packetOpcode = ntohs(*(uint16_t *)(this->rxBuffer + sizeof(uint16_t)));
-
-			// Create Crypto Input Pointer
-			uint8_t * encryptedPacket = this->rxBuffer + 2 * sizeof(uint16_t);
-
-			// Substract Opcode Field from Packet Length
-			packetLength -= sizeof(uint16_t);
-
-			// Output Packet Opcode
-			printf("Packet Opcode: 0x%02X\n", packetOpcode);
-
-			// Packet has a body
-			if(packetLength > 0)
+			// Found GET Line
+			if (strncmp((char *)(this->rxBuffer + i), "GET /", strlen("GET /")) == 0)
 			{
-				// Output Encrypted Data
-				printf("Encrypted Data: ");
-				for(int i = 0; i < packetLength; i++)
-				{
-					printf("0x%02X", encryptedPacket[i]);
-					if(i != packetLength - 1) printf(", ");
-				}
-				printf("\n");
-				
+				// Isolate Path Variable
+				char * path = (char *)(this->rxBuffer + i + strlen("GET /"));
 
-				// Decrypt Data
-				uint8_t decryptedPacket[0x500a];
-				uint32_t decryptedPacketLength = sizeof(decryptedPacket);
-				crypto[KEY_CLIENT]->Decrypt(encryptedPacket, packetLength, decryptedPacket, &decryptedPacketLength);
+				// Terminate Path Variable
+				uint32_t j = 0;
+				while (strncmp(path + j, " ", strlen(" ")) != 0) j++;
+				path[j] = 0;
 
-				// Output Decrypted Data
-				printf("Decrypted Data: ");
-				for(uint32_t i = 0; i < decryptedPacketLength; i++)
-				{
-					printf("0x%02X", decryptedPacket[i]);
-					if(i != decryptedPacketLength - 1) printf(", ");
-				}
-				printf("\n");
-				
+				// Save Path Variable Reference
+				requestedPage = path;
 
-				// Invalid Packet Length (body is never < 4)
-				if(decryptedPacketLength < 4)
-				{
-					printf("Received packet with an invalid body length of %u bytes!\n", decryptedPacketLength);
-					return false;
-				}
-
-				// Read Packet Checksum
-				uint16_t packetChecksum = ntohs(*(uint16_t *)decryptedPacket);
-
-				// Packet Switch
-				switch(packetOpcode)
-				{
-					// Prevent Hacking Attempts
-					case OPCODE_PING:
-					printf("0x%02X packets shouldn't have a body!\n", packetOpcode);
-					return false;
-
-					// Key Exchange Request
-					case OPCODE_KEY_EXCHANGE_REQUEST:
-					{
-						// Calculate Checksum
-						uint16_t calculatedPacketChecksum = Crypto::Checksum(decryptedPacket + sizeof(uint16_t), decryptedPacketLength - sizeof(uint16_t));
-
-						// Invalid Checksum
-						if(packetChecksum != calculatedPacketChecksum)
-						{
-							printf("Received packet failed the checksum test (0x%04X != 0x%04X)!\n", packetChecksum, calculatedPacketChecksum);
-							return false;
-						}
-
-						// Read Key Length from Packet
-						uint16_t keyLength = ntohs(*(uint16_t *)(decryptedPacket + sizeof(uint16_t)));
-						
-						// Read Key from Packet
-						uint8_t * key = decryptedPacket + sizeof(uint16_t) * 2;
-						
-						// Key Length out of bounds
-						if(keyLength == 0 || keyLength > decryptedPacketLength - (sizeof(uint16_t) * 2))
-						{
-							printf("Received key length (%u > %u) exceeds the packet boundaries!\n", keyLength, (uint32_t)(decryptedPacketLength - sizeof(uint16_t) * 2));
-							return false;
-						}
-						
-						// Key Length over maximum allowed length
-						if(keyLength > 16)
-						{
-							printf("Received key length exceeds the allowed maximum key length (%u > 16)!\n", keyLength);
-							return false;
-						}
-						
-						// Create Cryptography Objects
-						crypto[KEY_CLIENT_PENDING] = new Crypto(key, keyLength);
-						uint8_t randKey[16];
-						for(uint32_t i = 0; i < sizeof(randKey); i++) randKey[i] = rand() % 256;
-						crypto[KEY_SERVER_PENDING] = new Crypto(randKey, sizeof(randKey));
-						
-
-						// Output Random Key
-						printf("Generated Random Key:\n");
-						for(uint32_t i = 0; i < sizeof(randKey); i++)
-						{
-							printf("0x%02X", randKey[i]);
-							if(i != sizeof(randKey) - 1) printf(", ");
-						}
-						printf("\n");
-
-						// Allocate Response Buffer
-						uint8_t response[52] = {0};
-						uint8_t decryptedResponse[48] = {0};
-						
-						// Cast Fields
-						uint16_t * packetLengthField = (uint16_t *)response;
-						uint16_t * packetOpcodeField = &packetLengthField[1];
-						uint8_t * packetPayloadField = (uint8_t *)&packetOpcodeField[1];
-						uint16_t * checksumField = (uint16_t *)decryptedResponse;
-						uint16_t * keyLengthField1 = &checksumField[1];
-						uint8_t * keyField1 = (uint8_t *)&keyLengthField1[1];
-						uint16_t * keyLengthField2 = (uint16_t *)(keyField1 + keyLength);
-						uint8_t * keyField2 = (uint8_t *)&keyLengthField2[1];
-						uint32_t * defaultSeg = (uint32_t *)(keyField2 + keyLength);
-						
-						// Write Static Data
-						*packetLengthField = htons(sizeof(response) - sizeof(*packetLengthField));
-						*packetOpcodeField = htons(OPCODE_KEY_EXCHANGE_RESPONSE);
-						*keyLengthField1 = htons(keyLength);
-						*keyLengthField2 = htons(sizeof(randKey));
-						*defaultSeg = htonl(this->segServer);
-												
-																																										
-						// Write Secret Keys
-						memcpy(keyField1, key, keyLength);
-						memcpy(keyField2, randKey, sizeof(randKey));
-						
-						// Calculate Checksum
-						*checksumField = htons(Crypto::Checksum((uint8_t *)&checksumField[1], sizeof(decryptedResponse) - sizeof(*checksumField)));
-																							
-						// Encrypt Response
-						uint32_t packetPayloadFieldSize = sizeof(response) - sizeof(*packetLengthField) - sizeof(*packetOpcodeField);
-						crypto[KEY_SERVER]->Encrypt(decryptedResponse, sizeof(decryptedResponse), packetPayloadField, &packetPayloadFieldSize);
-
-						// Send Response
-						send(socket, response, sizeof(response), 0);
-
-						// Log Event
-						printf("Key Exchange finished!\n");
-
-						// Break Switch
-						break;
-					}
-
-					// Key Exchange Acknowledgment
-					case OPCODE_KEY_EXCHANGE_ACKNOWLEDGMENT:
-					{
-						// Pending Keys weren't set yet
-						if(crypto[KEY_CLIENT_PENDING] == NULL || crypto[KEY_SERVER_PENDING] == NULL)
-						{
-							printf("There are no pending keys to check the acknowledgment against!\n");
-							return false;
-						}
-
-						// Read Key Length from Packet
-						uint16_t keyLength = ntohs(*(uint16_t *)(decryptedPacket + sizeof(uint16_t)));
-
-						// Read Key from Packet
-						uint8_t * key = decryptedPacket + sizeof(uint16_t) * 2;
-
-						// Key Length out of bounds
-						if(keyLength == 0 || keyLength > decryptedPacketLength - (sizeof(uint16_t) * 2))
-						{
-							printf("Received key length (%u > %u) exceeds the packet boundaries!\n", keyLength, (uint32_t)(decryptedPacketLength - sizeof(uint16_t) * 2));
-							return false;
-						}
-
-						// Calculate Checksum
-						uint16_t calculatedPacketChecksum = Crypto::Checksum(decryptedPacket + sizeof(uint16_t), keyLength + sizeof(uint16_t));
-
-						// Invalid Checksum
-						if(packetChecksum != calculatedPacketChecksum)
-						{
-							printf("Received packet failed the checksum test (0x%04X != 0x%04X)!\n", packetChecksum, calculatedPacketChecksum);
-							return false;
-						}
-
-						// Key Length over maximum allowed length
-						if(keyLength > 16)
-						{
-							printf("Received key length exceeds the allowed maximum key length (%u > 16)!\n", keyLength);
-							return false;
-						}
-
-						// Key Lengths don't match
-						if(crypto[KEY_SERVER_PENDING]->GetKeyLength() != keyLength)
-						{
-							printf("The server and acknowledgment key lengths don't match!\n");
-							return false;
-						}
-
-						// Keys don't match
-						if(memcmp(crypto[KEY_SERVER_PENDING]->GetKey(), key, keyLength) != 0)
-						{
-							printf("The server and acknowledgment keys don't match!\n");
-							return false;
-						}
-
-						// Free Memory of previous Crypto Handler
-						delete crypto[KEY_CLIENT];
-						delete crypto[KEY_SERVER];
-
-						// Activate Keys
-						crypto[KEY_CLIENT] = crypto[KEY_CLIENT_PENDING];
-						crypto[KEY_SERVER] = crypto[KEY_SERVER_PENDING];
-						crypto[KEY_CLIENT_PENDING] = NULL;
-						crypto[KEY_SERVER_PENDING] = NULL;
-
-						// Debug Output
-						printf("Key Exchange Acknowledgment was successful!\n");
-
-						// Break Switch
-						break;
-					}
-
-					// Data Packet
-					case OPCODE_DATA:
-					{
-						// Log Event
-						printf("Received Data Packet!\n");
-
-						// Argument Length Parameter missing
-						if(decryptedPacketLength < (sizeof(uint16_t) + sizeof(uint32_t) + sizeof(uint16_t)))
-						{
-							printf("The data argument length is missing!\n");
-							return false;
-						}
-
-						// Extract Client Segment Number
-						uint32_t newSeg = ntohl(*(uint32_t *)(decryptedPacket + sizeof(uint16_t)));
-
-						// Invalid Segment Number
-						if (newSeg <= this->segClient)
-						{
-							printf("The Client's Segment Number was less than or equal to the last one (%d <= %d)!", newSeg, this->segClient);
-							return false;
-						}
-
-						// Extract Argument Length
-						uint16_t argumentLength = ntohs(*(uint16_t *)(decryptedPacket + sizeof(uint16_t) + sizeof(uint32_t)));
-
-						// Calculate Checksum Base Length
-						uint32_t checksumBaseLength = sizeof(uint32_t) + sizeof(uint16_t) + argumentLength;
-
-						//Extract internal Opcode...
-						uint16_t internalOpcode = ntohs(*(uint16_t *)(decryptedPacket + sizeof(uint16_t) + sizeof(uint32_t) + sizeof(uint16_t)));
-
-						// Argument Parameter missing
-						if(decryptedPacketLength < (sizeof(uint16_t) + checksumBaseLength))
-						{
-							printf("The data argument is missing!\n");
-							return false;
-						}
-
-						// Calculate Checksum
-						uint16_t calculatedPacketChecksum = Crypto::Checksum(decryptedPacket + sizeof(uint16_t), checksumBaseLength);
-
-						// Invalid Checksum
-						if(packetChecksum != calculatedPacketChecksum)
-						{
-							printf("Received packet failed the checksum test (0x%04X != 0x%04X)!\n", packetChecksum, calculatedPacketChecksum);
-							return false;
-						}
-
-						// Extract Argument
-						uint8_t * argument = decryptedPacket + sizeof(uint16_t) + sizeof(uint32_t) + sizeof(uint16_t) + sizeof(uint16_t);
-
-						// Output Client Segment Number
-						printf("Client Segment: 0x%02X\n",newSeg);
-
-						// Update Client Segment Number in Object
-						this->segClient = newSeg;
-						
-						// Output Internal Opcode
-						printf("Internal Opcode: 0x%02X\n", internalOpcode);
-
-						// Output Argument Data
-						argumentLength -= sizeof(uint16_t);
-						printf("Argument Data:\n");
-						for(uint32_t i = 0; i < argumentLength; i++)
-						{
-							printf("0x%02X", argument[i]);
-							if(i < (uint32_t)(argumentLength - 1)) printf(", ");
-						}
-						printf("\n");
-
-						// Append Log to Logfile
-						if(this->enableLogging)
-						{
-							char lBuff[16];
-							sprintf(lBuff,"%02X",internalOpcode);
-							this->logFile << "Received 0x30_0x" << lBuff << " ";
-							sprintf(lBuff,"0x%02X",decryptedPacketLength);
-							this->logFile << lBuff << " bytes of data\n\t";
-							for(uint32_t i = 0; i < decryptedPacketLength; i++)
-							{
-								sprintf(lBuff,"%02X ",decryptedPacket[i]);
-								this->logFile << lBuff;
-							}
-							this->logFile << "\n";
-						}
-
-						// Process 0x30 Data Packet Contents
-						processPacket30((uint8_t*)argument, (uint16_t)argumentLength, (uint16_t)internalOpcode);						
-
-						// Break Switch
-						break;
-					}
-
-					// Unknown Packet Opcode
-					default:
-					printf("Unknown packet opcode 0x%02X!\n", packetOpcode);
-					return false;
-				}
+				// Stop Buffer Scan
+				break;
 			}
-
-			// Packet has no body
-			else
-			{
-				// Packet Switch
-				switch(packetOpcode)
-				{
-					// Prevent Hacking Attempts
-					case OPCODE_KEY_EXCHANGE_REQUEST:
-					case OPCODE_KEY_EXCHANGE_RESPONSE:
-					case OPCODE_KEY_EXCHANGE_ACKNOWLEDGMENT:
-					case OPCODE_DATA:
-					printf("0x%02X packets need a body!\n", packetOpcode);
-					return false;
-
-					// Ping Packet
-					case OPCODE_PING:
-					printf("Received Ping!\n");
-					this->lastHeartbeat = time(NULL);
-					break;
-
-					// Unknown Packet Opcode
-					default:
-					printf("Unknown packet opcode 0x%02X!\n", packetOpcode);
-					return false;
-				}
-			}
-
-			// Discard Data
-			MoveRXPointer((sizeof(uint16_t) * 2 + packetLength) * (-1));
 		}
 
-		// Not enough Data available
-		else break;
+		// Hacking Attempt or non-get request (either way, we are not interested in handling it)
+		if (requestedPage == NULL)
+			return false;
+
+		// TODO Actually do something with requestedPage (serve different server statistics / pages)
+
+		// Fetch Client List from Server Singleton
+		std::list<Client *> * clients = Server::getInstance()->GetClientList();
+
+		// Allocate & Render Server Status Information Text
+		char * serverStatus = new char[1024 * clients->size()];
+		memset(serverStatus, 0, 1024 * clients->size());
+
+		// Client Ghost Counter
+		uint32_t ghostClients = 0;
+		
+		// Iterate Clients
+		for(std::list<Client *>::iterator it = clients->begin(); it != clients->end(); it++)
+		{
+			// Fetch Client Object
+			Client * client = *it;
+
+			// Client is missing the minimal amount of display data
+			if (client->diskID[0] == 0 || client->saveID[0] == 0) continue;
+
+			// Client is missing character display data
+			if (client->activeCharacterSaveID[0] == 0 || client->activeCharacter[0] == 0)
+			{
+				// Output Client Information
+				sprintf(serverStatus + strlen(serverStatus), "Ghost: %s / %s\n", client->diskID, client->saveID);
+
+				// Add Client to Ghosts
+				ghostClients++;
+				continue;
+			}
+
+			// Output Client Information
+			sprintf(serverStatus + strlen(serverStatus), "Character: %s / %s / %s / %s (%s Level %u)\n", client->diskID, client->saveID, client->activeCharacterSaveID, client->activeCharacter, classNames[client->activeCharacterClass], client->activeCharacterLevel);
+		}
+
+		// Output Server Status information via HTTP
+		sendHTTP(serverStatus, strlen(serverStatus), (char *)"text/html");
+
+		// Free Memory
+		delete [] serverStatus;
+
+		// Notify Administrator
+		printf("User requested Server Status via HTTP\n");
+
+		// Discard Data
+		MoveRXPointer(this->rxBufferPosition * (-1));
+	}
+
+	// Game / Area Server / Undefined Processing
+	else
+	{
+		// Data available in RX Buffer
+		while(this->rxBufferPosition > 2)
+		{
+			// Check for "GE" in "GET" HTTP Command
+			if (strncmp((char *)this->rxBuffer, "GE", 2) == 0)
+			{
+				// Blindly assume that this is a Webclient for now (I really don't want to listen on a separate port for this)
+				this->clientType = CLIENTTYPE_WEBCLIENT;
+
+				// Resume Handling in the Webclient Handler (just in case all the data came in in one TCP recv call)
+				goto webClientHandler;
+			}
+
+			// Extract Packet Length
+			uint16_t packetLength = ntohs(*(uint16_t *)this->rxBuffer);
+
+			// Packet available in RX Buffer
+			if(this->rxBufferPosition >= (sizeof(uint16_t) + packetLength))
+			{
+				// Extract Packet Opcode
+				uint16_t packetOpcode = ntohs(*(uint16_t *)(this->rxBuffer + sizeof(uint16_t)));
+
+				// Create Crypto Input Pointer
+				uint8_t * encryptedPacket = this->rxBuffer + 2 * sizeof(uint16_t);
+
+				// Substract Opcode Field from Packet Length
+				packetLength -= sizeof(uint16_t);
+
+				// Output Packet Opcode
+				printf("Packet Opcode: 0x%02X\n", packetOpcode);
+
+				// Packet has a body
+				if(packetLength > 0)
+				{
+					// Output Encrypted Data
+					printf("Encrypted Data: ");
+					for(int i = 0; i < packetLength; i++)
+					{
+						printf("0x%02X", encryptedPacket[i]);
+						if(i != packetLength - 1) printf(", ");
+					}
+					printf("\n");
+				
+
+					// Decrypt Data
+					uint8_t decryptedPacket[0x500a];
+					uint32_t decryptedPacketLength = sizeof(decryptedPacket);
+					crypto[KEY_CLIENT]->Decrypt(encryptedPacket, packetLength, decryptedPacket, &decryptedPacketLength);
+
+					// Output Decrypted Data
+					printf("Decrypted Data: ");
+					for(uint32_t i = 0; i < decryptedPacketLength; i++)
+					{
+						printf("0x%02X", decryptedPacket[i]);
+						if(i != decryptedPacketLength - 1) printf(", ");
+					}
+					printf("\n");
+				
+
+					// Invalid Packet Length (body is never < 4)
+					if(decryptedPacketLength < 4)
+					{
+						printf("Received packet with an invalid body length of %u bytes!\n", decryptedPacketLength);
+						return false;
+					}
+
+					// Read Packet Checksum
+					uint16_t packetChecksum = ntohs(*(uint16_t *)decryptedPacket);
+
+					// Packet Switch
+					switch(packetOpcode)
+					{
+						// Prevent Hacking Attempts
+						case OPCODE_PING:
+						printf("0x%02X packets shouldn't have a body!\n", packetOpcode);
+						return false;
+
+						// Key Exchange Request
+						case OPCODE_KEY_EXCHANGE_REQUEST:
+						{
+							// Calculate Checksum
+							uint16_t calculatedPacketChecksum = Crypto::Checksum(decryptedPacket + sizeof(uint16_t), decryptedPacketLength - sizeof(uint16_t));
+
+							// Invalid Checksum
+							if(packetChecksum != calculatedPacketChecksum)
+							{
+								printf("Received packet failed the checksum test (0x%04X != 0x%04X)!\n", packetChecksum, calculatedPacketChecksum);
+								return false;
+							}
+
+							// Read Key Length from Packet
+							uint16_t keyLength = ntohs(*(uint16_t *)(decryptedPacket + sizeof(uint16_t)));
+						
+							// Read Key from Packet
+							uint8_t * key = decryptedPacket + sizeof(uint16_t) * 2;
+						
+							// Key Length out of bounds
+							if(keyLength == 0 || keyLength > decryptedPacketLength - (sizeof(uint16_t) * 2))
+							{
+								printf("Received key length (%u > %u) exceeds the packet boundaries!\n", keyLength, (uint32_t)(decryptedPacketLength - sizeof(uint16_t) * 2));
+								return false;
+							}
+						
+							// Key Length over maximum allowed length
+							if(keyLength > 16)
+							{
+								printf("Received key length exceeds the allowed maximum key length (%u > 16)!\n", keyLength);
+								return false;
+							}
+						
+							// Create Cryptography Objects
+							crypto[KEY_CLIENT_PENDING] = new Crypto(key, keyLength);
+							uint8_t randKey[16];
+							for(uint32_t i = 0; i < sizeof(randKey); i++) randKey[i] = rand() % 256;
+							crypto[KEY_SERVER_PENDING] = new Crypto(randKey, sizeof(randKey));
+						
+
+							// Output Random Key
+							printf("Generated Random Key:\n");
+							for(uint32_t i = 0; i < sizeof(randKey); i++)
+							{
+								printf("0x%02X", randKey[i]);
+								if(i != sizeof(randKey) - 1) printf(", ");
+							}
+							printf("\n");
+
+							// Allocate Response Buffer
+							uint8_t response[52] = {0};
+							uint8_t decryptedResponse[48] = {0};
+						
+							// Cast Fields
+							uint16_t * packetLengthField = (uint16_t *)response;
+							uint16_t * packetOpcodeField = &packetLengthField[1];
+							uint8_t * packetPayloadField = (uint8_t *)&packetOpcodeField[1];
+							uint16_t * checksumField = (uint16_t *)decryptedResponse;
+							uint16_t * keyLengthField1 = &checksumField[1];
+							uint8_t * keyField1 = (uint8_t *)&keyLengthField1[1];
+							uint16_t * keyLengthField2 = (uint16_t *)(keyField1 + keyLength);
+							uint8_t * keyField2 = (uint8_t *)&keyLengthField2[1];
+							uint32_t * defaultSeg = (uint32_t *)(keyField2 + keyLength);
+						
+							// Write Static Data
+							*packetLengthField = htons(sizeof(response) - sizeof(*packetLengthField));
+							*packetOpcodeField = htons(OPCODE_KEY_EXCHANGE_RESPONSE);
+							*keyLengthField1 = htons(keyLength);
+							*keyLengthField2 = htons(sizeof(randKey));
+							*defaultSeg = htonl(this->segServer);
+												
+																																										
+							// Write Secret Keys
+							memcpy(keyField1, key, keyLength);
+							memcpy(keyField2, randKey, sizeof(randKey));
+						
+							// Calculate Checksum
+							*checksumField = htons(Crypto::Checksum((uint8_t *)&checksumField[1], sizeof(decryptedResponse) - sizeof(*checksumField)));
+																							
+							// Encrypt Response
+							uint32_t packetPayloadFieldSize = sizeof(response) - sizeof(*packetLengthField) - sizeof(*packetOpcodeField);
+							crypto[KEY_SERVER]->Encrypt(decryptedResponse, sizeof(decryptedResponse), packetPayloadField, &packetPayloadFieldSize);
+
+							// Send Response
+							send(socket, response, sizeof(response), 0);
+
+							// Log Event
+							printf("Key Exchange finished!\n");
+
+							// Break Switch
+							break;
+						}
+
+						// Key Exchange Acknowledgment
+						case OPCODE_KEY_EXCHANGE_ACKNOWLEDGMENT:
+						{
+							// Pending Keys weren't set yet
+							if(crypto[KEY_CLIENT_PENDING] == NULL || crypto[KEY_SERVER_PENDING] == NULL)
+							{
+								printf("There are no pending keys to check the acknowledgment against!\n");
+								return false;
+							}
+
+							// Read Key Length from Packet
+							uint16_t keyLength = ntohs(*(uint16_t *)(decryptedPacket + sizeof(uint16_t)));
+
+							// Read Key from Packet
+							uint8_t * key = decryptedPacket + sizeof(uint16_t) * 2;
+
+							// Key Length out of bounds
+							if(keyLength == 0 || keyLength > decryptedPacketLength - (sizeof(uint16_t) * 2))
+							{
+								printf("Received key length (%u > %u) exceeds the packet boundaries!\n", keyLength, (uint32_t)(decryptedPacketLength - sizeof(uint16_t) * 2));
+								return false;
+							}
+
+							// Calculate Checksum
+							uint16_t calculatedPacketChecksum = Crypto::Checksum(decryptedPacket + sizeof(uint16_t), keyLength + sizeof(uint16_t));
+
+							// Invalid Checksum
+							if(packetChecksum != calculatedPacketChecksum)
+							{
+								printf("Received packet failed the checksum test (0x%04X != 0x%04X)!\n", packetChecksum, calculatedPacketChecksum);
+								return false;
+							}
+
+							// Key Length over maximum allowed length
+							if(keyLength > 16)
+							{
+								printf("Received key length exceeds the allowed maximum key length (%u > 16)!\n", keyLength);
+								return false;
+							}
+
+							// Key Lengths don't match
+							if(crypto[KEY_SERVER_PENDING]->GetKeyLength() != keyLength)
+							{
+								printf("The server and acknowledgment key lengths don't match!\n");
+								return false;
+							}
+
+							// Keys don't match
+							if(memcmp(crypto[KEY_SERVER_PENDING]->GetKey(), key, keyLength) != 0)
+							{
+								printf("The server and acknowledgment keys don't match!\n");
+								return false;
+							}
+
+							// Free Memory of previous Crypto Handler
+							delete crypto[KEY_CLIENT];
+							delete crypto[KEY_SERVER];
+
+							// Activate Keys
+							crypto[KEY_CLIENT] = crypto[KEY_CLIENT_PENDING];
+							crypto[KEY_SERVER] = crypto[KEY_SERVER_PENDING];
+							crypto[KEY_CLIENT_PENDING] = NULL;
+							crypto[KEY_SERVER_PENDING] = NULL;
+
+							// Debug Output
+							printf("Key Exchange Acknowledgment was successful!\n");
+
+							// Break Switch
+							break;
+						}
+
+						// Data Packet
+						case OPCODE_DATA:
+						{
+							// Log Event
+							printf("Received Data Packet!\n");
+
+							// Argument Length Parameter missing
+							if(decryptedPacketLength < (sizeof(uint16_t) + sizeof(uint32_t) + sizeof(uint16_t)))
+							{
+								printf("The data argument length is missing!\n");
+								return false;
+							}
+
+							// Extract Client Segment Number
+							uint32_t newSeg = ntohl(*(uint32_t *)(decryptedPacket + sizeof(uint16_t)));
+
+							// Invalid Segment Number
+							if (newSeg <= this->segClient)
+							{
+								printf("The Client's Segment Number was less than or equal to the last one (%d <= %d)!", newSeg, this->segClient);
+								return false;
+							}
+
+							// Extract Argument Length
+							uint16_t argumentLength = ntohs(*(uint16_t *)(decryptedPacket + sizeof(uint16_t) + sizeof(uint32_t)));
+
+							// Calculate Checksum Base Length
+							uint32_t checksumBaseLength = sizeof(uint32_t) + sizeof(uint16_t) + argumentLength;
+
+							//Extract internal Opcode...
+							uint16_t internalOpcode = ntohs(*(uint16_t *)(decryptedPacket + sizeof(uint16_t) + sizeof(uint32_t) + sizeof(uint16_t)));
+
+							// Argument Parameter missing
+							if(decryptedPacketLength < (sizeof(uint16_t) + checksumBaseLength))
+							{
+								printf("The data argument is missing!\n");
+								return false;
+							}
+
+							// Calculate Checksum
+							uint16_t calculatedPacketChecksum = Crypto::Checksum(decryptedPacket + sizeof(uint16_t), checksumBaseLength);
+
+							// Invalid Checksum
+							if(packetChecksum != calculatedPacketChecksum)
+							{
+								printf("Received packet failed the checksum test (0x%04X != 0x%04X)!\n", packetChecksum, calculatedPacketChecksum);
+								return false;
+							}
+
+							// Extract Argument
+							uint8_t * argument = decryptedPacket + sizeof(uint16_t) + sizeof(uint32_t) + sizeof(uint16_t) + sizeof(uint16_t);
+
+							// Output Client Segment Number
+							printf("Client Segment: 0x%02X\n",newSeg);
+
+							// Update Client Segment Number in Object
+							this->segClient = newSeg;
+						
+							// Output Internal Opcode
+							printf("Internal Opcode: 0x%02X\n", internalOpcode);
+
+							// Output Argument Data
+							argumentLength -= sizeof(uint16_t);
+							printf("Argument Data:\n");
+							for(uint32_t i = 0; i < argumentLength; i++)
+							{
+								printf("0x%02X", argument[i]);
+								if(i < (uint32_t)(argumentLength - 1)) printf(", ");
+							}
+							printf("\n");
+
+							// Append Log to Logfile
+							if(this->enableLogging)
+							{
+								char lBuff[16];
+								sprintf(lBuff,"%02X",internalOpcode);
+								this->logFile << "Received 0x30_0x" << lBuff << " ";
+								sprintf(lBuff,"0x%02X",decryptedPacketLength);
+								this->logFile << lBuff << " bytes of data\n\t";
+								for(uint32_t i = 0; i < decryptedPacketLength; i++)
+								{
+									sprintf(lBuff,"%02X ",decryptedPacket[i]);
+									this->logFile << lBuff;
+								}
+								this->logFile << "\n";
+							}
+
+							// Process 0x30 Data Packet Contents
+							processPacket30((uint8_t*)argument, (uint16_t)argumentLength, (uint16_t)internalOpcode);						
+
+							// Break Switch
+							break;
+						}
+
+						// Unknown Packet Opcode
+						default:
+						printf("Unknown packet opcode 0x%02X!\n", packetOpcode);
+						return false;
+					}
+				}
+
+				// Packet has no body
+				else
+				{
+					// Packet Switch
+					switch(packetOpcode)
+					{
+						// Prevent Hacking Attempts
+						case OPCODE_KEY_EXCHANGE_REQUEST:
+						case OPCODE_KEY_EXCHANGE_RESPONSE:
+						case OPCODE_KEY_EXCHANGE_ACKNOWLEDGMENT:
+						case OPCODE_DATA:
+						printf("0x%02X packets need a body!\n", packetOpcode);
+						return false;
+
+						// Ping Packet
+						case OPCODE_PING:
+						printf("Received Ping!\n");
+						this->lastHeartbeat = time(NULL);
+						break;
+
+						// Unknown Packet Opcode
+						default:
+						printf("Unknown packet opcode 0x%02X!\n", packetOpcode);
+						return false;
+					}
+				}
+
+				// Discard Data
+				MoveRXPointer((sizeof(uint16_t) * 2 + packetLength) * (-1));
+			}
+
+			// Not enough Data available
+			else break;
+		}
 	}
 
 	// Keep Connection alive

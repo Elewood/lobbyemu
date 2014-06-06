@@ -76,6 +76,7 @@ dataType 5 = userGreeting
 //MISC_DEFINES
 #define CLIENTTYPE_GAME		    0x7430
 #define CLIENTTYPE_AREASERVER		0x7431
+#define CLIENTTYPE_WEBCLIENT	0x7432
 
 
 //Packet 0x30 subOpcode Defines
@@ -121,6 +122,13 @@ dataType 5 = userGreeting
 #define OPCODE_DATA_LOGON_AS2_RESPONSE 0x701d
 
 #define OPCODE_DATA_DISKID		   0x7423
+/*
+struct diskiddata
+{
+	char discID[65]; // might be variable, but so far only 64 byte (+1B null terminator) were encountered
+	char static[9]; // might be variable, but so far only 8 byte (+1B null terminator) were encountered, value seems to be a static "dot_hack" string
+};
+*/
 #define OPCODE_DATA_DISKID_OK		0x7424
 #define OPCODE_DATA_DISKID_BAD	   0x7425
 
@@ -137,21 +145,14 @@ dataType 5 = userGreeting
 /*
 struct registerChar
 {
+	uint8_t saveSlot; // 0-2
 	char saveID[21] //includes null terminator
 	char name[]; //variable length. includes null terminator.
-	uint8_t unk1
-	uint16_t unk2
-	char greeting[] //var len, null term.
-	uint8_t unk3 
-	uint16_t unk4
-	uint8_unk5
-	uint16_t unk6
-	
-	
-	
-	
-	
-	}
+	uint8_t class; // 0 = Twin Blade, 1 = Blademaster, 2 = Heavy Blade, 3 = Heavy Axe, 4 = Long Arm, 5 = Wavemaster
+	uint16_t level;
+	char greeting[]; //var len, null term.
+	uint8_t unk4[63];
+}
 */
 
 
@@ -256,10 +257,34 @@ struct registerChar
 #define OPCODE_DATA_COM_OK		   0x7877
 
 #define OPCODE_DATA_SELECT_CHAR	   0x789f
+/*
+struct selectchar
+{
+	char discID[65]; // most likely variable size, but we only encounter 64byte (+1B null terminator) really
+	char systemSaveID[21]; // most likely variable size, but we only encounter 20byte (+1B null terminator) really
+	uint8_t unk1; // same as unk1 in OPCODE_DATA_REGISTER_CHAR
+	char characterSaveID[21]; // most likely variable size, but we only encounter 20 byte (+1B null terminator) really
+};
+OPCODE_DATA_SELECT_CHAR is a variable size packet with 3 null terminated strings appended to each others end.
+
+ex. "1234ABCD\0DEADBEEF\0C01DB15D\0"
+
+They seem to be hex values represented in ascii, like this "0e041409..." and so on.
+
+The first string seems to be the disc id and usually is 0x40 (0x41 with terminator) bytes long, representing a 32byte hex value.
+Due to the way we patched the disc id (DNAS) out of the iso, every user has the same value here for now, namely all zero bytes.
+
+The second one seems to be the console / savedata id and probably corresponds to the system savedata file people create when they first launch fragment.
+
+The third and final one is the character id and is created when people create a new character and reported to the server via the OPCODE_DATA_REGISTER_CHAR packet.
+*/
 #define OPCODE_DATA_SELECT_CHAROK	 0x78a0
 
 
 #define OPCODE_DATA_SELECT2_CHAR	  0x78a2
+/*
+OPCODE_DATA_SELECT_CHAR2 seems to be a 1:1 clone of the normal OPCODE_DATA_SELECT_CHAR packet.
+*/
 #define OPCODE_DATA_SELECT2_CHAROK	0x78a3
 
 
