@@ -853,6 +853,18 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 														
 		case OPCODE_DATA_AS_PUBLISH_DETAILS4:
 		{
+			/*
+			uint16_t unk1;
+			char diskid[65];
+			uint16_t unk2; // 0x01? player count maybe?
+			char servername[]; // variable length, null terminated
+			char player1[]; // variable length, null terminated
+			char player2[]; // variable length, null terminated
+			char player3[]; // variable length, null terminated
+			uint8_t unk3; // 0x01?
+			uint32_t unk4; // 0x00?
+			*/
+
 			//uint8_t uRes[] = {0x00,0x01};
 			printf("RECEIVED AREA SERVER PUBLISH4\n");
 
