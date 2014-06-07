@@ -78,7 +78,6 @@ dataType 5 = userGreeting
 #define CLIENTTYPE_AREASERVER		0x7431
 #define CLIENTTYPE_WEBCLIENT	0x7432
 
-
 //Packet 0x30 subOpcode Defines
 //The area server likes to ping in a DATA packet...
 #define OPCODE_DATA_PING			 0x02

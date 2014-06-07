@@ -14,15 +14,27 @@
 #define KEY_CLIENT_PENDING 2
 #define KEY_SERVER_PENDING 3
 
+// Character Level Limitation
 #define MIN_CHARACTER_LEVEL 1
 #define MAX_CHARACTER_LEVEL 99
 
+// Character Classes
 #define CLASS_TWINBLADE 0
 #define CLASS_BLADEMASTER 1
 #define CLASS_HEAVYBLADE 2
 #define CLASS_HEAVYAXE 3
 #define CLASS_LONGARM 4
 #define CLASS_WAVEMASTER 5
+
+// Height Options
+#define HEIGHT_SHORT 0
+#define HEIGHT_NORMAL 1
+#define HEIGHT_TALL 2
+
+// Weight Options
+#define WEIGHT_ANOREXIC 0
+#define WEIGHT_NORMAL 1
+#define WEIGHT_OBESE 2
 
 // Message of the Day
 extern const char * MOTD;
@@ -315,10 +327,22 @@ class Client
 	int GetCharacterModelHeight();
 
 	/**
+	 * Returns the human-readable display of the logged in Character's Height (inside of Lobby)
+	 * @return Character Height (or NULL if undetectable)
+	 */
+	const char * GetCharacterModelHeightText();
+
+	/**
 	 * Returns the Weight of the logged in Character (inside of Lobby)
 	 * @return Character Weight (or -1 if undetectable)
 	 */
 	int GetCharacterModelWeight();
+
+	/**
+	 * Returns the human-readable display of the logged in Character's Weight (inside of Lobby)
+	 * @return Character Weight (or NULL if undetectable)
+	 */
+	const char * GetCharacterModelWeightText();
 
 	/**
 	 * Returns the HP of the logged in Character (inside of Lobby)

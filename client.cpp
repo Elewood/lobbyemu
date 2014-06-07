@@ -938,7 +938,8 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			
 		case OPCODE_DATA_SAVEID:								
 		{
-			uint8_t uRes[512] = {0};
+			uint8_t uRes[512];
+			memset(uRes, 0, sizeof(uRes));
 			strncpy((char *)uRes, MOTD, sizeof(uRes) - 1);
 			//printf("SENDING: %s\n",uRes);
 			printf("Sending SAVEID_OK\n");
@@ -2476,16 +2477,16 @@ bool Client::ProcessRXBuffer()
 			Client * client = *it;
 
 			// Ignore Non-PS2 Clients
-			if (this->clientType == CLIENTTYPE_GAME)
+			if (client->GetClientType() == CLIENTTYPE_GAME)
 			{
 				// Client is missing the minimal amount of display data
-				if (client->diskID[0] == 0 || client->saveID[0] == 0) continue;
+				if (client->GetDiskID() == NULL || client->GetSaveID() == NULL) continue;
 
 				// Client is missing character display data
-				if (client->activeCharacterSaveID[0] == 0 || client->activeCharacter[0] == 0)
+				if (client->GetCharacterSaveID() == NULL || client->GetCharacterName() == NULL)
 				{
 					// Output Client Information
-					sprintf(serverStatus + strlen(serverStatus), "Ghost: %s / %s\n", client->diskID, client->saveID);
+					sprintf(serverStatus + strlen(serverStatus), "Ghost: %s / %s\n", client->GetDiskID(), client->GetSaveID());
 
 					// Add Client to Ghosts
 					ghostClients++;
@@ -2493,7 +2494,7 @@ bool Client::ProcessRXBuffer()
 				}
 
 				// Output Client Information
-				sprintf(serverStatus + strlen(serverStatus), "Character: %s / %s / %s / %s (%s Level %u) / %s / %s / %s\n", GetDiskID(), GetSaveID(), GetCharacterSaveID(), GetCharacterName(), GetCharacterClassName(), GetCharacterLevel(), GetCharacterGreeting(), GetCharacterModelPortrait(true), GetCharacterModelPortrait(false));
+				sprintf(serverStatus + strlen(serverStatus), "Character: %s / %s / %s / %s (%s Level %u, HP %u, SP %u, GP %lld, Height %s, Weight %s) / %s / %s / %s\n", client->GetDiskID(), client->GetSaveID(), client->GetCharacterSaveID(), client->GetCharacterName(), client->GetCharacterClassName(), client->GetCharacterLevel(), client->GetCharacterHP(), client->GetCharacterSP(), client->GetCharacterGP(), client->GetCharacterModelHeightText(), client->GetCharacterModelWeightText(), client->GetCharacterGreeting(), client->GetCharacterModelPortrait(true), client->GetCharacterModelPortrait(false));
 			}
 		}
 
@@ -3170,7 +3171,8 @@ const char * Client::GetCharacterModelColorCode()
 const char * Client::GetCharacterModelPortrait(bool rounded)
 {
 	// Static Result Buffer
-	static char name[32];
+	static int index = 0;
+	static char name[2][32];
 
 	// Fetch required Parameter
 	char classLetter = GetCharacterModelClass();
@@ -3183,10 +3185,16 @@ const char * Client::GetCharacterModelPortrait(bool rounded)
 		return NULL;
 
 	// Render Character Portrait Filename
-	sprintf(name, (rounded ? "xf%c%d%c%s" : "xp%c%d%c%s"), classLetter, modelNumber, modelType, colorCode);
+	sprintf(name[index], (rounded ? "xf%c%d%c_%s" : "xp%c%d%c_%s"), classLetter, modelNumber, modelType, colorCode);
+
+	// Pick Result Buffer
+	char * result = name[index];
+
+	// Switch Index for next call
+	index = index == 0 ? 1 : 0;
 
 	// Return Character Portrait Filename
-	return name;
+	return result;
 }
 
 /**
@@ -3195,8 +3203,43 @@ const char * Client::GetCharacterModelPortrait(bool rounded)
  */
 int Client::GetCharacterModelHeight()
 {
-	// TODO Implement
-	return -1;
+	// Fetch Model Type
+	char modelType = GetCharacterModelType();
+
+	// Invalid Model Type
+	if (modelType < 'a' || modelType > 'i') return -1;
+
+	// Short Height
+	if (modelType >= 'a' && modelType <= 'c') return HEIGHT_SHORT;
+
+	// Normal Height
+	if (modelType >= 'd' && modelType <= 'f') return HEIGHT_NORMAL;
+
+	// Tall Height
+	return HEIGHT_TALL;
+}
+
+/**
+ * Returns the human-readable display of the logged in Character's Height (inside of Lobby)
+ * @return Character Height (or NULL if undetectable)
+ */
+const char * Client::GetCharacterModelHeightText()
+{
+	// Human-readable Heights
+	char * heights[3] = {
+		(char *)"Short",
+		(char *)"Normal",
+		(char *)"Tall"
+	};
+
+	// Get Model Height
+	int height = GetCharacterModelHeight();
+
+	// Invalid Model Height
+	if (height < HEIGHT_SHORT || height > HEIGHT_TALL) return NULL;
+
+	// Return Height
+	return heights[height];
 }
 
 /**
@@ -3205,8 +3248,43 @@ int Client::GetCharacterModelHeight()
  */
 int Client::GetCharacterModelWeight()
 {
-	// TODO Implement
-	return -1;
+	// Fetch Model Type
+	char modelType = GetCharacterModelType();
+
+	// Invalid Model Type
+	if (modelType < 'a' || modelType > 'i') return -1;
+
+	// Thin Character
+	if (modelType == 'a' || modelType == 'd' || modelType == 'g') return WEIGHT_ANOREXIC;
+
+	// Normal Height
+	if (modelType == 'b' || modelType == 'e' || modelType == 'h') return WEIGHT_NORMAL;
+
+	// Tall Height
+	return WEIGHT_OBESE;
+}
+
+/**
+ * Returns the human-readable display of the logged in Character's Weight (inside of Lobby)
+ * @return Character Weight (or NULL if undetectable)
+ */
+const char * Client::GetCharacterModelWeightText()
+{
+	// Human-readable Weights
+	char * weights[3] = {
+		(char *)"Anorexic",
+		(char *)"Normal",
+		(char *)"Obese"
+	};
+
+	// Get Model Weight
+	int weight = GetCharacterModelWeight();
+
+	// Invalid Model Weight
+	if (weight < WEIGHT_ANOREXIC || weight > WEIGHT_OBESE) return NULL;
+
+	// Return Weight
+	return weights[weight];
 }
 
 /**
