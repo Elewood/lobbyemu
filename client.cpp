@@ -55,6 +55,9 @@ void Client::CommonConstructor(int socket)
 	// Save Socket
 	this->socket = socket;
 
+	// Initialize Area Server Field
+	this->aServ = NULL;
+
 	// Initialize Game Data Fields
 	memset(this->diskID, 0, sizeof(this->diskID));
 	memset(this->saveID, 0, sizeof(this->saveID));
@@ -108,6 +111,10 @@ void Client::CommonConstructor(int socket)
  */
 Client::~Client()
 {
+	// Delete Area Server Object
+	if (this->aServ != NULL)
+		delete this->aServ;
+
 	// Free RX Buffer
 	delete[] this->rxBuffer;
 
@@ -211,6 +218,9 @@ uint32_t Client::getServerSegment()
  */
 bool Client::sendPacket30(uint8_t * args, uint32_t aSize, uint16_t opcode)
 {
+	// Result
+	bool result = false;
+
 	// Calculate real decrypted Data Length (segCount + DataSize + subOpCode + aSize)
 	uint32_t dataLen = sizeof(uint32_t) + sizeof(uint16_t) + sizeof(uint16_t) + aSize;
 
@@ -289,14 +299,14 @@ bool Client::sendPacket30(uint8_t * args, uint32_t aSize, uint16_t opcode)
 	*/
 
 	// Send Packet
-	if (send(this->socket, (char*)response, responseLen, 0) == (int)responseLen)
-	{
-		// Send Success
-		return true;
-	}
+	result = (send(this->socket, (char*)response, responseLen, 0) == (int)responseLen);
 
-	// Send Failure
-	return false;
+	// Free Memory
+	delete [] response;
+	delete [] decryptedResponse;
+
+	// Return Result
+	return result;
 }
 
 /**

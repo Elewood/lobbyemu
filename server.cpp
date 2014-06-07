@@ -51,13 +51,13 @@ Server::Server()
 Server::~Server()
 {
 	// Iterate Clients
-	for(std::list<Client *>::iterator it = clients->begin(); it != clients->end(); ++it)
+	for(std::list<Client *>::iterator it = clients->begin(); it != clients->end(); /* Handled in Code */)
 	{
 		// Fetch Client
 		Client * client = *it;
 
 		// Remove Client from List
-		clients->erase(it);
+		clients->erase(it++);
 
 		// Free Client Memory
 		delete client;
@@ -65,6 +65,9 @@ Server::~Server()
 
 	// Free Client List
 	delete clients;
+
+	// Free Area Server List (no need to free items, they were created and destroyed inside the Client objects, this list is merely a public getter for faster querying)
+	delete areaServers;
 }
 
 /**
