@@ -43,6 +43,9 @@ class Client
 	// Client Segment Number
 	uint32_t segClient;
 
+	// Logfile Stream
+	clOfstream logFile;
+	
 	// Area Server Object
 	AreaServer * aServ; // set when it becomes obvious Client is an Area Server	
 
@@ -73,14 +76,6 @@ class Client
 	// Timeout Timer
 	time_t lastHeartbeat;
 
-	/**
-	 * Internal Common Constructor
-	 * @param socket Socket
-	 */
-	void CommonConstructor(int socket);
-
-	public:
-
 	// Client Type (CLIENTTYPE_GAME for PS2 or CLIENTTYPE_AREASERVER for PC)
 	uint16_t clientType;
 
@@ -105,57 +100,29 @@ class Client
 	// Level of the currently selected Character (inside of Lobby)
 	uint16_t activeCharacterLevel;
 
-	// Logfile Stream
-	clOfstream logFile;
-	
+	// 3D Model of the currently selected Character (inside of Lobby)
+	uint32_t activeCharacterModel;
+
+	// Maximum HP of the currently selected Character (inside of Lobby)
+	uint16_t activeCharacterHP;
+
+	// Maximum SP of the currently selected Character (inside of Lobby)
+	uint16_t activeCharacterSP;
+
+	// Current GP of the currently selected Character (inside of Lobby)
+	uint32_t activeCharacterGP;
+
+	// Number of God Statues visited offline with the currently selected Character (inside of Lobby)
+	uint16_t activeCharacterOfflineGodCounter;
+
+	// Number of God Statues visited online with the currently selected Character (inside of Lobby)
+	uint16_t activeCharacterOnlineGodCounter;
+
 	/**
-	 * Creates a Crypto-Client Network Channel
+	 * Internal Common Constructor
 	 * @param socket Socket
 	 */
-	Client(int socket);
-
-	/**
-	 * Create a Crypto-Client Network Channel
-	 * @param socket Socket
-	 * @param extIp Public IP Address (AreaServer)
-	 */
-	Client(int socket, uint32_t extIp);
-
-	/**
-	 * Destructor
-	 */
-	~Client();
-
-	/**
-	 * Returns the Client Network Socket
-	 * @return Socket
-	 */
-	int GetSocket();
-
-	/**
-	 * Returns the next available RX Buffer Pointer
-	 * @param addPosition Considers used RX Buffer Segments in Pointer Calculation if set to true
-	 * @return RX Buffer Pointer
-	 */
-	uint8_t * GetRXBuffer(bool addPosition);
-
-	/**
-	 * Returns available RX Buffer Size (in Bytes)
-	 * @return Available RX Buffer Size (in Bytes)
-	 */
-	int GetFreeRXBufferSize();
-	
-	/**
-	 * Moves the RX Buffer Pointer
-	 * @param delta Movement Vector (can be negative)
-	 */
-	void MoveRXPointer(int delta);
-
-	/**
-	 * Process accumulated Packets on the RX Buffer
-	 * @return Processing Result
-	 */
-	bool ProcessRXBuffer();
+	void CommonConstructor(int socket);
 
 	/**
 	 * 0x30 Data Packet Processor
@@ -217,6 +184,197 @@ class Client
 	 * @return Next available Server Segment Number
 	 */
 	uint32_t getServerSegment();
+
+	public:
+
+	/**
+	 * Creates a Crypto-Client Network Channel
+	 * @param socket Socket
+	 */
+	Client(int socket);
+
+	/**
+	 * Create a Crypto-Client Network Channel
+	 * @param socket Socket
+	 * @param extIp Public IP Address (AreaServer)
+	 */
+	Client(int socket, uint32_t extIp);
+
+	/**
+	 * Destructor
+	 */
+	~Client();
+
+	/**
+	 * Returns the Client Type
+	 * @return Client Type (or -1 if undefined)
+	 */
+	int GetClientType();
+
+	/**
+	 * Returns the Disk ID of the Client (as a 64B null terminated hexstring)
+	 * @return Disk ID (or NULL if undefined)
+	 */
+	const char * GetDiskID();
+
+	/**
+	 * Returns the Disk ID of the Client (as a 32B array)
+	 * @return Disk ID (or NULL if undefined)
+	 */
+	const uint8_t * GetDiskIDBytes();
+
+	/**
+	 * Returns the System Save ID of the Client (as a 64B null terminated hexstring)
+	 * @return System Save ID (or NULL if undefined)
+	 */
+	const char * GetSaveID();
+
+	/**
+	 * Returns the System Save ID of the Client (as a 32B array)
+	 * @return System Save ID (or NULL if undefined)
+	 */
+	const uint8_t * GetSaveIDBytes();
+
+	/**
+	 * Returns the Character Save ID of the Client (as a 64B null terminated hexstring)
+	 * @return Character Save ID (or NULL if undefined)
+	 */
+	const char * GetCharacterSaveID();
+
+	/**
+	 * Returns the Character Save ID of the Client (as a 32B array)
+	 * @return Character Save ID (or NULL if undefined)
+	 */
+	const uint8_t * GetCharacterSaveIDBytes();
+
+	/**
+	 * Returns the Name of the logged in Character (inside of Lobby)
+	 * @return Character Name (or NULL if undetectable)
+	 */
+	const char * GetCharacterName();
+
+	/**
+	 * Returns the Greeting Message of the logged in Character (inside of Lobby)
+	 * @return Character Greeting (or NULL if undetectable)
+	 */
+	const char * GetCharacterGreeting();
+
+	/**
+	 * Returns the Level of the logged in Character (inside of Lobby)
+	 * @return Character Level (or -1 if undetectable)
+	 */
+	int GetCharacterLevel();
+
+	/**
+	 * Returns the numeric Class of the logged in Character (inside of Lobby)
+	 * @return Numeric Character Class (or -1 if undetectable)
+	 */
+	int GetCharacterClass();
+
+	/**
+	 * Returns a human-readable Class Name of the logged in Character (inside of Lobby)
+	 * @return Character Class Name (or NULL if undetectable)
+	 */
+	const char * GetCharacterClassName();
+
+	/**
+	 * Returns the Model Class of the logged in Character (inside of Lobby)
+	 * @return Model Class (or -1 if undetectable)
+	 */
+	char GetCharacterModelClass();
+
+	/**
+	 * Returns the Model Number of the logged in Character (inside of Lobby)
+	 * @return Model Number (or -1 if undetectable)
+	 */
+	char GetCharacterModelNumber();
+
+	/**
+	 * Returns the Model Type of the logged in Character (inside of Lobby)
+	 * @return Model Type (or -1 if undetectable)
+	 */
+	char GetCharacterModelType();
+
+	/**
+	 * Returns the Color Code of the logged in Character (inside of Lobby)
+	 * @return Character Color Code (or NULL if undetectable)
+	 */
+	const char * GetCharacterModelColorCode();
+
+	/**
+	 * Returns the Character Portrait of the logged in Character (inside of Lobby)
+	 * @param rounded Return the rounded portrait?
+	 * @return Character Portrait (or NULL if undetectable)
+	 */
+	const char * GetCharacterModelPortrait(bool rounded);
+
+	/**
+	 * Returns the Height of the logged in Character (inside of Lobby)
+	 * @return Character Height (or -1 if undetectable)
+	 */
+	int GetCharacterModelHeight();
+
+	/**
+	 * Returns the Weight of the logged in Character (inside of Lobby)
+	 * @return Character Weight (or -1 if undetectable)
+	 */
+	int GetCharacterModelWeight();
+
+	/**
+	 * Returns the HP of the logged in Character (inside of Lobby)
+	 * @return Character HP (or -1 if undetectable)
+	 */
+	int GetCharacterHP();
+
+	/**
+	 * Returns the SP of the logged in Character (inside of Lobby)
+	 * @return Character SP (or -1 if undetectable)
+	 */
+	int GetCharacterSP();
+
+	/**
+	 * Returns the GP of the logged in Character (inside of Lobby)
+	 * @return Character GP (or -1 if undetectable)
+	 */
+	int64_t GetCharacterGP();
+
+	/**
+	 * Returns the number of Offline / Online Dungeons the logged in Character finished (inside of Lobby)
+	 * @param online Should the Online Counter be returned?
+	 * @return Offline Dungeon Counter (or -1 if undetectable)
+	 */
+	int GetGodStatueCounter(bool online);
+
+	/**
+	 * Returns the Client Network Socket
+	 * @return Socket
+	 */
+	int GetSocket();
+
+	/**
+	 * Returns the next available RX Buffer Pointer
+	 * @param addPosition Considers used RX Buffer Segments in Pointer Calculation if set to true
+	 * @return RX Buffer Pointer
+	 */
+	uint8_t * GetRXBuffer(bool addPosition);
+
+	/**
+	 * Returns available RX Buffer Size (in Bytes)
+	 * @return Available RX Buffer Size (in Bytes)
+	 */
+	int GetFreeRXBufferSize();
+	
+	/**
+	 * Moves the RX Buffer Pointer
+	 * @param delta Movement Vector (can be negative)
+	 */
+	void MoveRXPointer(int delta);
+
+	/**
+	 * Process accumulated Packets on the RX Buffer
+	 * @return Processing Result
+	 */
+	bool ProcessRXBuffer();
 
 	/**
 	 * Read Client Timeout Status

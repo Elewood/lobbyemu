@@ -151,7 +151,17 @@ struct registerChar
 	uint8_t class; // 0 = Twin Blade, 1 = Blademaster, 2 = Heavy Blade, 3 = Heavy Axe, 4 = Long Arm, 5 = Wavemaster
 	uint16_t level;
 	char greeting[]; //var len, null term.
-	uint8_t unk4[63];
+
+	uint32_t model; // this code follows ncdysons formula as seen in client.cpp
+	uint8_t unk1; // 0x01?
+	uint16_t hp;
+	uint16_t sp;
+	uint32_t gp;
+	uint16_t offlineGodCounter;
+	uint16_t onlineGodCounter;
+	uint16_t unk2; // maybe some kind of story completion bit?
+
+	uint8_t unk4[44];
 }
 */
 

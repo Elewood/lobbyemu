@@ -984,7 +984,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		case OPCODE_DATA_REGISTER_CHAR:
 		{
 			// Argument given (everything else has to be a hacking attempt and will be ignored here)
-			if (aSize > 7)
+			if (aSize > 24)
 			{
 				// Terminate Packet (to prevent possible overflow through hacking attempt)
 				arg[aSize - 1] = 0;
@@ -1010,18 +1010,41 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 							uint16_t * characterLevel = (uint16_t *)(characterClass + 1);
 							char * greeting = (char *)&characterLevel[1];
 
-							// Prevent Followup Character Name Overflow Hacking Attempts
+							// Prevent Character Greeting Overflow Hacking Attempts
 							if (greeting < (char *)(arg + aSize))
 							{
-								// Prevent non-critical but annoying invalid data Hacking Attempts
-								if (ntohs(*characterLevel) >= MIN_CHARACTER_LEVEL && ntohs(*characterLevel) <= MAX_CHARACTER_LEVEL)
+								// Calculate Offset past last known Field
+								uint16_t * pastUnk2 = (uint16_t *)(greeting + strlen(greeting) + 1 /* null-terminator */ + 1 /* unk1 */ + 2 /* HP */ + 2 /* SP */+ 4 /* GP */ + 2 /* Offline Gott-Statue Counter */ + 2 /* Online Gott-Statue Counter */+ 2 /* unk2 */);
+
+								// Prevent Followup Character Greeting Overflow Hacking Attempts
+								if (pastUnk2 < (uint16_t *)(arg + aSize))
 								{
-									// Store Data into Client Object
-									this->activeCharacterClass = *characterClass;
-									this->activeCharacterLevel = ntohs(*characterLevel);
-									strncpy(this->activeCharacterSaveID, saveID, sizeof(this->activeCharacterSaveID));
-									strncpy(this->activeCharacter, characterName, sizeof(this->activeCharacter));
-									strncpy(this->activeCharacterGreeting, greeting, sizeof(this->activeCharacterGreeting));
+									// Cast Static Fields
+									uint32_t * characterModel = (uint32_t *)(greeting + strlen(greeting) + 1);
+									uint8_t * unk1 = (uint8_t *)&characterModel[1];
+									uint16_t * characterHP = (uint16_t *)&unk1[1];
+									uint16_t * characterSP = (uint16_t *)&characterHP[1];
+									uint32_t * characterGP = (uint32_t *)&characterSP[1];
+									uint16_t * offlineGodCounter = (uint16_t *)&characterGP[1];
+									uint16_t * onlineGodCounter = (uint16_t *)&offlineGodCounter[1];
+									// uint16_t * unk2 = (uint16_t *)&onlineGodCounter[1];
+
+									// Prevent non-critical but annoying invalid data Hacking Attempts
+									if (ntohs(*characterLevel) >= MIN_CHARACTER_LEVEL && ntohs(*characterLevel) <= MAX_CHARACTER_LEVEL)
+									{
+										// Store Data into Client Object
+										this->activeCharacterClass = *characterClass;
+										this->activeCharacterLevel = ntohs(*characterLevel);
+										this->activeCharacterModel = ntohl(*characterModel);
+										this->activeCharacterHP = ntohs(*characterHP);
+										this->activeCharacterSP = ntohs(*characterSP);
+										this->activeCharacterGP = ntohl(*characterGP);
+										this->activeCharacterOfflineGodCounter = ntohs(*offlineGodCounter);
+										this->activeCharacterOnlineGodCounter = ntohs(*onlineGodCounter);
+										strncpy(this->activeCharacterSaveID, saveID, sizeof(this->activeCharacterSaveID));
+										strncpy(this->activeCharacter, characterName, sizeof(this->activeCharacter));
+										strncpy(this->activeCharacterGreeting, greeting, sizeof(this->activeCharacterGreeting));
+									}
 								}
 							}
 						}
@@ -1045,6 +1068,12 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			// Wipe Character Identification Data from Object
 			this->activeCharacterClass = CLASS_TWINBLADE;
 			this->activeCharacterLevel = 0;
+			this->activeCharacterModel = 0;
+			this->activeCharacterHP = 0;
+			this->activeCharacterSP = 0;
+			this->activeCharacterGP = 0;
+			this->activeCharacterOfflineGodCounter = 0;
+			this->activeCharacterOnlineGodCounter = 0;
 			memset(this->activeCharacterSaveID, 0, sizeof(this->activeCharacterSaveID));
 			memset(this->activeCharacter, 0, sizeof(this->activeCharacter));
 			memset(this->activeCharacterGreeting, 0, sizeof(this->activeCharacterGreeting));
@@ -2446,22 +2475,26 @@ bool Client::ProcessRXBuffer()
 			// Fetch Client Object
 			Client * client = *it;
 
-			// Client is missing the minimal amount of display data
-			if (client->diskID[0] == 0 || client->saveID[0] == 0) continue;
-
-			// Client is missing character display data
-			if (client->activeCharacterSaveID[0] == 0 || client->activeCharacter[0] == 0)
+			// Ignore Non-PS2 Clients
+			if (this->clientType == CLIENTTYPE_GAME)
 			{
+				// Client is missing the minimal amount of display data
+				if (client->diskID[0] == 0 || client->saveID[0] == 0) continue;
+
+				// Client is missing character display data
+				if (client->activeCharacterSaveID[0] == 0 || client->activeCharacter[0] == 0)
+				{
+					// Output Client Information
+					sprintf(serverStatus + strlen(serverStatus), "Ghost: %s / %s\n", client->diskID, client->saveID);
+
+					// Add Client to Ghosts
+					ghostClients++;
+					continue;
+				}
+
 				// Output Client Information
-				sprintf(serverStatus + strlen(serverStatus), "Ghost: %s / %s\n", client->diskID, client->saveID);
-
-				// Add Client to Ghosts
-				ghostClients++;
-				continue;
+				sprintf(serverStatus + strlen(serverStatus), "Character: %s / %s / %s / %s (%s Level %u) / %s / %s / %s\n", GetDiskID(), GetSaveID(), GetCharacterSaveID(), GetCharacterName(), GetCharacterClassName(), GetCharacterLevel(), GetCharacterGreeting(), GetCharacterModelPortrait(true), GetCharacterModelPortrait(false));
 			}
-
-			// Output Client Information
-			sprintf(serverStatus + strlen(serverStatus), "Character: %s / %s / %s / %s (%s Level %u)\n", client->diskID, client->saveID, client->activeCharacterSaveID, client->activeCharacter, classNames[client->activeCharacterClass], client->activeCharacterLevel);
 		}
 
 		// TODO Iterate Area Server
@@ -2780,7 +2813,7 @@ bool Client::ProcessRXBuffer()
 
 							// Update Client Segment Number in Object
 							this->segClient = newSeg;
-						
+							
 							// Output Internal Opcode
 							printf("Internal Opcode: 0x%02X\n", internalOpcode);
 
@@ -2862,6 +2895,371 @@ bool Client::ProcessRXBuffer()
 
 	// Keep Connection alive
 	return true;
+}
+
+/**
+ * Returns the Client Type
+ * @return Client Type (or -1 if undefined)
+ */
+int Client::GetClientType()
+{
+	// Return Client Type
+	return this->clientType != 0 ? this->clientType : -1;
+}
+
+/**
+ * Returns the Disk ID of the Client (as a 64B null terminated hexstring)
+ * @return Disk ID (or NULL if undefined)
+ */
+const char * Client::GetDiskID()
+{
+	// Return Disk ID
+	return this->diskID[0] != 0 ? this->diskID : NULL;
+}
+
+/**
+ * Returns the Disk ID of the Client (as a 32B array)
+ * @return Disk ID (or NULL if undefined)
+ */
+const uint8_t * Client::GetDiskIDBytes()
+{
+	// Static Result Buffer
+	static uint8_t idb8[32];
+
+	// Scan Buffer
+	uint32_t idb[32];
+
+	// Disk ID not set
+	if (this->diskID[0] == 0) return NULL;
+
+	// Parse Disk ID
+	if (sscanf(this->diskID, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x", &idb[0], &idb[1], &idb[2], &idb[3], &idb[4], &idb[5], &idb[6], &idb[7], &idb[8], &idb[9], &idb[10], &idb[11], &idb[12], &idb[13], &idb[14], &idb[15], &idb[16], &idb[17], &idb[18], &idb[19], &idb[20], &idb[21], &idb[22], &idb[23], &idb[24], &idb[25], &idb[26], &idb[27], &idb[28], &idb[29], &idb[30], &idb[31]) < 32)
+		return NULL;
+
+	// Convert to Byte Buffer
+	for (uint32_t i = 0; i < 32; i++)
+	{
+		// Mask Data
+		idb8[i] = idb[i] & 0xFF;
+	}
+
+	// Return Disk ID
+	return idb8;
+}
+
+/**
+ * Returns the System Save ID of the Client (as a 20B null terminated hexstring)
+ * @return System Save ID (or NULL if undefined)
+ */
+const char * Client::GetSaveID()
+{
+	// Return Save ID
+	return this->saveID[0] != 0 ? this->saveID : NULL;
+}
+
+/**
+ * Returns the System Save ID of the Client (as a 10B array)
+ * @return System Save ID (or NULL if undefined)
+ */
+const uint8_t * Client::GetSaveIDBytes()
+{
+	// Static Result Buffer
+	static uint8_t idb8[10];
+
+	// Scan Buffer
+	uint32_t idb[10];
+
+	// Disk ID not set
+	if (this->saveID[0] == 0) return NULL;
+
+	// Parse Disk ID
+	if (sscanf(this->saveID, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x", &idb[0], &idb[1], &idb[2], &idb[3], &idb[4], &idb[5], &idb[6], &idb[7], &idb[8], &idb[9]) < 10)
+		return NULL;
+
+	// Convert to Byte Buffer
+	for (uint32_t i = 0; i < 10; i++)
+	{
+		// Mask Data
+		idb8[i] = idb[i] & 0xFF;
+	}
+
+	// Return Disk ID
+	return idb8;
+}
+
+/**
+ * Returns the Character Save ID of the Client (as a 20B null terminated hexstring)
+ * @return Character Save ID (or NULL if undefined)
+ */
+const char * Client::GetCharacterSaveID()
+{
+	// Return Character Save ID
+	return this->activeCharacterSaveID[0] != 0 ? this->activeCharacterSaveID : NULL;
+}
+
+/**
+ * Returns the Character Save ID of the Client (as a 10B array)
+ * @return Character Save ID (or NULL if undefined)
+ */
+const uint8_t * Client::GetCharacterSaveIDBytes()
+{
+	// Static Result Buffer
+	static uint8_t idb8[10];
+
+	// Scan Buffer
+	uint32_t idb[10];
+
+	// Disk ID not set
+	if (this->activeCharacterSaveID[0] == 0) return NULL;
+
+	// Parse Disk ID
+	if (sscanf(this->activeCharacterSaveID, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x", &idb[0], &idb[1], &idb[2], &idb[3], &idb[4], &idb[5], &idb[6], &idb[7], &idb[8], &idb[9]) < 10)
+		return NULL;
+
+	// Convert to Byte Buffer
+	for (uint32_t i = 0; i < 10; i++)
+	{
+		// Mask Data
+		idb8[i] = idb[i] & 0xFF;
+	}
+
+	// Return Disk ID
+	return idb8;
+}
+
+/**
+ * Returns the Name of the logged in Character (inside of Lobby)
+ * @return Character Name (or NULL if undetectable)
+ */
+const char * Client::GetCharacterName()
+{
+	// Return Character Name
+	return this->activeCharacter[0] != 0 ? this->activeCharacter : NULL;
+}
+
+/**
+ * Returns the Greeting Message of the logged in Character (inside of Lobby)
+ * @return Character Greeting (or NULL if undetectable)
+ */
+const char * Client::GetCharacterGreeting()
+{
+	// Return Greeting Message
+	return this->activeCharacter[0] != 0 ? this->activeCharacterGreeting : NULL;
+}
+
+/**
+ * Returns the Level of the logged in Character (inside of Lobby)
+ * @return Character Level (or -1 if undetectable)
+ */
+int Client::GetCharacterLevel()
+{
+	// Return Character Level
+	return this->activeCharacter[0] != 0 ? this->activeCharacterLevel : -1;
+}
+
+/**
+ * Returns the numeric Class of the logged in Character (inside of Lobby)
+ * @return Numeric Character Class (or -1 if undetectable)
+ */
+int Client::GetCharacterClass()
+{
+	// Return Character Class
+	return (this->activeCharacter[0] != 0 && this->activeCharacterClass >= CLASS_TWINBLADE && this->activeCharacterClass <= CLASS_WAVEMASTER) ? this->activeCharacterClass : -1;
+}
+
+/**
+ * Returns a human-readable Class Name of the logged in Character (inside of Lobby)
+ * @return Character Class Name (or NULL if undetectable)
+ */
+const char * Client::GetCharacterClassName()
+{
+	// Fetch Character Class Index
+	int index = GetCharacterClass();
+
+	// Invalid Index
+	if (index < CLASS_TWINBLADE || index > CLASS_WAVEMASTER) return NULL;
+
+	// Return Character Class Name
+	return classNames[index];
+}
+
+/**
+ * Returns the Model Class of the logged in Character (inside of Lobby)
+ * @return Model Class (or -1 if undetectable)
+ */
+char Client::GetCharacterModelClass()
+{
+	// Character not logged in
+	if (GetCharacterName() == NULL) return -1;
+
+	// Class Model Name Letters
+	char classLetters[6] = { 't', 'b', 'h', 'a', 'l', 'w' };
+
+	// Fetch Character Class Index
+	int index = activeCharacterModel & 0x0F;
+
+	// Invalid Index
+	if (index < CLASS_TWINBLADE || index > CLASS_WAVEMASTER) return -1;
+
+	// Return Class Model Name Letter
+	return classLetters[index];
+}
+
+/**
+ * Returns the Model Number of the logged in Character (inside of Lobby)
+ * @return Model Number (or -1 if undetectable)
+ */
+char Client::GetCharacterModelNumber()
+{
+	// Character not logged in
+	if (GetCharacterName() == NULL) return -1;
+
+	// Return Character Model Number
+	return (activeCharacterModel >> 4 & 0x0F) + 1;
+}
+
+/**
+ * Returns the Model Type of the logged in Character (inside of Lobby)
+ * @return Model Type (or -1 if undetectable)
+ */
+char Client::GetCharacterModelType()
+{
+	// Character not logged in
+	if (GetCharacterName() == NULL) return -1;
+
+	// Model Type Letters
+	char typeLetters[9] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i' };
+
+	// Fetch Model Type Index
+	int index = (activeCharacterModel >> 12) & 0x0F;
+
+	// Invalid Index
+	if (index < 0 || index > 8) return -1;
+
+	// Return Model Type Letter
+	return typeLetters[index];
+}
+
+/**
+ * Returns the Color Code of the logged in Character (inside of Lobby)
+ * @return Character Color Code (or NULL if undetectable)
+ */
+const char * Client::GetCharacterModelColorCode()
+{
+	// Character not logged in
+	if (GetCharacterName() == NULL) return NULL;
+
+	// Color Codes
+	char * colorCodes[6] = { (char *)"rd", (char *)"bl", (char *)"yl", (char *)"gr", (char *)"br", (char *)"pp" };
+
+	// Fetch Color Code Index
+	int index = (activeCharacterModel >> 8) & 0x0F;
+
+	// Invalid Index
+	if (index < 0 || index > 5) return NULL;
+
+	// Return Color Code
+	return colorCodes[index];
+}
+
+/**
+ * Returns the Character Portrait of the logged in Character (inside of Lobby)
+ * @param rounded Return the rounded portrait?
+ * @return Character Portrait (or NULL if undetectable)
+ */
+const char * Client::GetCharacterModelPortrait(bool rounded)
+{
+	// Static Result Buffer
+	static char name[32];
+
+	// Fetch required Parameter
+	char classLetter = GetCharacterModelClass();
+	char modelNumber = GetCharacterModelNumber();
+	char modelType = GetCharacterModelType();
+	const char * colorCode = GetCharacterModelColorCode();
+
+	// Character not logged in
+	if (classLetter == -1 || modelNumber == -1 || modelType == -1 || colorCode == NULL)
+		return NULL;
+
+	// Render Character Portrait Filename
+	sprintf(name, (rounded ? "xf%c%d%c%s" : "xp%c%d%c%s"), classLetter, modelNumber, modelType, colorCode);
+
+	// Return Character Portrait Filename
+	return name;
+}
+
+/**
+ * Returns the Height of the logged in Character (inside of Lobby)
+ * @return Character Height (or -1 if undetectable)
+ */
+int Client::GetCharacterModelHeight()
+{
+	// TODO Implement
+	return -1;
+}
+
+/**
+ * Returns the Weight of the logged in Character (inside of Lobby)
+ * @return Character Weight (or -1 if undetectable)
+ */
+int Client::GetCharacterModelWeight()
+{
+	// TODO Implement
+	return -1;
+}
+
+/**
+ * Returns the HP of the logged in Character (inside of Lobby)
+ * @return Character HP (or -1 if undetectable)
+ */
+int Client::GetCharacterHP()
+{
+	// Character not logged in
+	if (GetCharacterName() == NULL) return -1;
+
+	// Return Character HP
+	return this->activeCharacterHP;
+}
+
+/**
+ * Returns the SP of the logged in Character (inside of Lobby)
+ * @return Character SP (or -1 if undetectable)
+ */
+int Client::GetCharacterSP()
+{
+	// Character not logged in
+	if (GetCharacterName() == NULL) return -1;
+
+	// Return Character SP
+	return this->activeCharacterSP;
+}
+
+/**
+ * Returns the GP of the logged in Character (inside of Lobby)
+ * @return Character GP (or -1 if undetectable)
+ */
+int64_t Client::GetCharacterGP()
+{
+	// Character not logged in
+	if (GetCharacterName() == NULL) return -1;
+
+	// Return Character GP
+	return this->activeCharacterGP;
+}
+
+/**
+ * Returns the number of Offline / Online Dungeons the logged in Character finished (inside of Lobby)
+ * @param online Should the Online Counter be returned?
+ * @return Offline Dungeon Counter
+ */
+int Client::GetGodStatueCounter(bool online)
+{
+	// Character not logged in
+	if (GetCharacterName() == NULL) return -1;
+
+	// Return Online Counter
+	return online ? this->activeCharacterOnlineGodCounter : activeCharacterOfflineGodCounter;
 }
 
 /**
