@@ -2409,6 +2409,98 @@ bool Client::sendHTTP(char * buffer, uint32_t bufferLength, char * contentType)
 }
 
 /**
+ * Wraps a static htdocs stored Image into a HTTP Get Response Packet and sends it
+ * @param fileName Virtual Filesystem Filename
+ * @return Result
+ */
+bool Client::sendHTTPImage(const char * fileName)
+{
+	// Result
+	bool result = true;
+
+	// Allocate File Path Memory
+	char filePath[512];
+	memset(filePath, 0, sizeof(filePath));
+
+	// Party Face Icon requested
+	if (strncmp(fileName, "xf", strlen("xf")) == 0)
+	{
+		// Create File Path
+		snprintf(filePath, sizeof(filePath) - 1, "htdocs/images/party/%s", fileName);
+	}
+
+	// Friendlist Portrait requested
+	else if (strncmp(fileName, "xp", strlen("xp")) == 0)
+	{
+		// Create File Path
+		snprintf(filePath, sizeof(filePath) - 1, "htdocs/images/portraits/%s", fileName);
+	}
+
+	// Unknown Image Type requested
+	else
+	{
+		// Send Warning to User
+		char * warning = (char *)"Unknown Image Type requested!";
+		sendHTTP(warning, strlen(warning), (char *)"text/plain");
+		result = false;
+	}
+
+	// No error just yet
+	if (result)
+	{
+		// Open File
+		FILE * fd = fopen(filePath, "rb");
+
+		// File opened
+		if (fd != NULL)
+		{
+			// Calculate File Size
+			fseek(fd, 0, SEEK_END);
+			uint32_t size = (uint32_t)ftell(fd);
+			fseek(fd, 0, SEEK_SET);
+
+			// Allocate File Content Memory
+			uint8_t * fileContent = new uint8_t[size];
+
+			// Load File Content
+			if (fread(fileContent, size, 1, fd) == 1)
+			{
+				// Send File Content
+				result = sendHTTP((char *)fileContent, size, (char *)"image/png");
+			}
+
+			// File couldn't be read
+			else
+			{
+				// Send Warning to User
+				char * warning = (char *)"Image couldn't be read!";
+				sendHTTP(warning, strlen(warning), (char *)"text/plain");
+				result = false;
+			}
+
+			// Free File Content Memory
+			delete [] fileContent;
+
+			// Close File
+			fclose(fd);
+		}
+
+		// File not found
+		else
+		{
+			// Send Warning to User
+				printf("%s\n", filePath);
+			char * warning = (char *)"Image couldn't be found!";
+			sendHTTP(warning, strlen(warning), (char *)"text/plain");
+			result = false;
+		}
+	}
+
+	// Return Result
+	return result;
+}
+
+/**
  * Process accumulated Packets on the RX Buffer
  * @return Processing Result
  */
@@ -2465,59 +2557,79 @@ bool Client::ProcessRXBuffer()
 		if (requestedPage == NULL)
 			return false;
 
-		// TODO Actually do something with requestedPage (serve different server statistics / pages)
-
-		// Fetch Client List from Server Singleton
-		std::list<Client *> * clients = Server::getInstance()->GetClientList();
-
-		// Allocate & Render Server Status Information Text
-		char * serverStatus = new char[1024 * clients->size()];
-		memset(serverStatus, 0, 1024 * clients->size());
-
-		// Output Player List Header
-		sprintf(serverStatus + strlen(serverStatus), "Player List:\n");
-
-		// Client Ghost Counter
-		uint32_t ghostClients = 0;
-		
-		// Iterate Clients
-		for(std::list<Client *>::iterator it = clients->begin(); it != clients->end(); it++)
+		// Server Status requested
+		if (requestedPage[0] == 0)
 		{
-			// Fetch Client Object
-			Client * client = *it;
+			// Fetch Client List from Server Singleton
+			std::list<Client *> * clients = Server::getInstance()->GetClientList();
 
-			// Ignore Non-PS2 Clients
-			if (client->GetClientType() == CLIENTTYPE_GAME)
+			// Allocate & Render Server Status Information Text
+			char * serverStatus = new char[1024 * clients->size()];
+			memset(serverStatus, 0, 1024 * clients->size());
+
+			// Client Ghost Counter
+			uint32_t ghostClients = 0;
+
+			// Iterate Clients
+			for(std::list<Client *>::iterator it = clients->begin(); it != clients->end(); it++)
 			{
-				// Client is missing the minimal amount of display data
-				if (client->GetDiskID() == NULL || client->GetSaveID() == NULL) continue;
+				// Fetch Client Object
+				Client * client = *it;
 
-				// Client is missing character display data
-				if (client->GetCharacterSaveID() == NULL || client->GetCharacterName() == NULL)
+				// Ignore Non-PS2 Clients
+				if (client->GetClientType() == CLIENTTYPE_GAME)
 				{
+					// Client is missing the minimal amount of display data
+					if (client->GetDiskID() == NULL || client->GetSaveID() == NULL) continue;
+
+					// Client is missing character display data
+					if (client->GetCharacterSaveID() == NULL || client->GetCharacterName() == NULL)
+					{
+						// Output Client Information
+						sprintf(serverStatus + strlen(serverStatus), "Ghost: %s / %s\n", client->GetDiskID(), client->GetSaveID());
+
+						// Add Client to Ghosts
+						ghostClients++;
+						continue;
+					}
+
 					// Output Client Information
-					sprintf(serverStatus + strlen(serverStatus), "Ghost: %s / %s\n", client->GetDiskID(), client->GetSaveID());
-
-					// Add Client to Ghosts
-					ghostClients++;
-					continue;
+					sprintf(serverStatus + strlen(serverStatus), "Character: %s / %s / %s / %s (%s Level %u, HP %u, SP %u, GP %lld, Height %s, Weight %s) / %s / %s / %s\n", client->GetDiskID(), client->GetSaveID(), client->GetCharacterSaveID(), client->GetCharacterName(), client->GetCharacterClassName(), client->GetCharacterLevel(), client->GetCharacterHP(), client->GetCharacterSP(), client->GetCharacterGP(), client->GetCharacterModelHeightText(), client->GetCharacterModelWeightText(), client->GetCharacterGreeting(), client->GetCharacterModelPortrait(true), client->GetCharacterModelPortrait(false));
 				}
-
-				// Output Client Information
-				sprintf(serverStatus + strlen(serverStatus), "Character: %s / %s / %s / %s (%s Level %u, HP %u, SP %u, GP %lld, Height %s, Weight %s) / %s / %s / %s\n", client->GetDiskID(), client->GetSaveID(), client->GetCharacterSaveID(), client->GetCharacterName(), client->GetCharacterClassName(), client->GetCharacterLevel(), client->GetCharacterHP(), client->GetCharacterSP(), client->GetCharacterGP(), client->GetCharacterModelHeightText(), client->GetCharacterModelWeightText(), client->GetCharacterGreeting(), client->GetCharacterModelPortrait(true), client->GetCharacterModelPortrait(false));
 			}
+
+			// TODO Iterate Area Server
+
+			// Output Server Status information via HTTP
+			sendHTTP(serverStatus, strlen(serverStatus), (char *)"text/plain");
+
+			// Free Memory
+			delete [] serverStatus;
+
+			// Notify Administrator
+			printf("User requested Server Status via HTTP\n");
 		}
 
-		// TODO Iterate Area Server
+		// Static Image requested
+		else if (strncmp(requestedPage, "images/", strlen("images/")) == 0)
+		{
+			// Fetch Image Filename
+			char * fileName = requestedPage + strlen("images/");
 
-		// Output Server Status information via HTTP
-		sendHTTP(serverStatus, strlen(serverStatus), (char *)"text/plain");
+			// Count Dots in Filename
+			uint32_t dotCount = 0;
+			for (uint32_t i = 0; i < strlen(fileName); i++)
+			{
+				if (fileName[i] == '.') dotCount++;
+			}
 
-		// Free Memory
-		delete [] serverStatus;
+			// Hacking Attempt detected
+			if (dotCount > 1 || strlen(fileName) < strlen("a.png") || strcmp(fileName + strlen(fileName) - strlen(".png"), ".png") != 0)
+				return false;
 
-		// Notify Administrator
-		printf("User requested Server Status via HTTP\n");
+			// Send Static Image via HTTP
+			sendHTTPImage(fileName);
+		}
 
 		// Discard Data
 		MoveRXPointer(this->rxBufferPosition * (-1));

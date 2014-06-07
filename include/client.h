@@ -172,6 +172,13 @@ class Client
 	bool sendHTTP(char * buffer, uint32_t bufferLength, char * contentType);
 
 	/**
+	 * Wraps a static htdocs stored Image into a HTTP Get Response Packet and sends it
+	 * @param fileName Virtual Filesystem Filename
+	 * @return Result
+	 */
+	bool sendHTTPImage(const char * fileName);
+
+	/**
 	 * Send the News Category List to the Client
 	 * @return Result
 	 */
