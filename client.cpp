@@ -64,6 +64,9 @@ void Client::CommonConstructor(int socket)
 	// Initialize Game Data Fields
 	memset(this->diskID, 0, sizeof(this->diskID));
 	memset(this->saveID, 0, sizeof(this->saveID));
+	memset(this->activeCharacterSaveID, 0, sizeof(this->activeCharacterSaveID));
+	memset(this->activeCharacter, 0, sizeof(this->activeCharacter));
+	memset(this->activeCharacterGreeting, 0, sizeof(this->activeCharacterGreeting));
 
 	// Initialize RX Buffer
 	this->rxBufferPosition = 0;
@@ -1095,7 +1098,6 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			break;				
 		}
 		
-		
 		case OPCODE_DATA_UNREGISTER_CHAR:
 		{
 			// Wipe Character Identification Data from Object
@@ -1695,7 +1697,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 				for(std::list<AreaServer *>::iterator it = areaServers->begin(); it != areaServers->end();/*takes care of itself...*/)
 				{
 					AreaServer * as = *it;
-					as->GetServerLine(uRes,sizeof(uRes),this->asExtAddr);
+					as->GetServerLine(uRes,sizeof(uRes),this->asExtAddr, GetAntiCheatEngineResult());
 					sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_LOBBY_GETSERVERS_ENTRY_SERVER);
 											
 					it++;				
@@ -2544,6 +2546,9 @@ bool Client::ProcessRXBuffer()
 	{
 		// Yeah it's a goto mark, bite me.
 		webClientHandler:
+
+		// Update Heartbeat for HTTP Connections
+		this->lastHeartbeat = time(NULL);
 
 		// Minimum HTTP Request Length
 		uint32_t minHTTPReqLength = strlen("GET / HTTP/1.1\r\n\r\n");
@@ -3528,6 +3533,16 @@ int Client::GetGodStatueCounter(bool online)
 
 	// Return Online Counter
 	return online ? this->activeCharacterOnlineGodCounter : activeCharacterOfflineGodCounter;
+}
+
+/**
+ * Returns the Anti Cheat Engine Evaluation Result
+ * @return Is this player a cheater?
+ */
+bool Client::GetAntiCheatEngineResult()
+{
+	// TODO Add proper evaluation
+	return false;
 }
 
 /**

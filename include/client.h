@@ -377,6 +377,12 @@ class Client
 	int GetGodStatueCounter(bool online);
 
 	/**
+	 * Returns the Anti Cheat Engine Evaluation Result
+	 * @return Is this player a cheater?
+	 */
+	bool GetAntiCheatEngineResult();
+
+	/**
 	 * Returns the Client Network Socket
 	 * @return Socket
 	 */
