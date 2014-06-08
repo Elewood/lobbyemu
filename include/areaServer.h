@@ -8,92 +8,125 @@
 class AreaServer
 {
 	private:
-		// Server Display Name
-		char serverName[21];
 
-		// Server ID
-		uint8_t serverId[8];
+	// Server Display Name
+	char serverName[21];
 
-		// Server Port (for people hosting multiple server)
-		uint16_t serverPort;
+	// Server ID
+	uint8_t serverId[8];
 
-		// Local Server IP (LAN)
-		uint32_t serverIPLocal;
+	// Server Port (for people hosting multiple server)
+	uint16_t serverPort;
 
-		// Public Server IP (WAN)
-		uint32_t serverIPExt;
+	// Local Server IP (LAN)
+	uint32_t serverIPLocal;
 
-		// Server Level
-		uint16_t serverLevel;
+	// Public Server IP (WAN)
+	uint32_t serverIPExt;
 
-		// Server User-Count	
-		uint16_t serverUsers;
+	// Server Level
+	uint16_t serverLevel;
 
-		// Server Status
-		uint8_t serverStatus;
+	// Server User-Count	
+	uint16_t serverUsers;
 
-		// SErver Type
-		uint16_t serverType;
-		
+	// Server Status
+	uint8_t serverStatus;
+
+	// SErver Type
+	uint16_t serverType;
+	
 	public:
-		// Server Socket
-		int socket;
 
-		/**
-		 * Area Server Dummy Constructor
-		 */
-		AreaServer();
+	// Server Socket
+	int socket;
 
-		/**
-		 * Area Server Constructor
-		 * @param socket Socket
-		 * @param eIp External IP (WAN)
-		 * @param lIp Local IP (LAN)
-		 * @param port Port
-		 * @param name Server Name
-		 * @param id Server ID
-		 * @param level Server Level
-		 * @param status Server Status
-		 * @param type Server Type
-		 */
-		AreaServer(int socket, uint32_t eIp, uint32_t lIp, uint32_t port, char* name, uint8_t * id, uint16_t level,uint8_t status,uint16_t type);
+	/**
+	 * Area Server Dummy Constructor
+	 */
+	AreaServer();
 
-		/**
-		 * Area Server Destructor
-		 */
-		~AreaServer();
+	/**
+	 * Area Server Constructor
+	 * @param socket Socket
+	 * @param eIp External IP (WAN)
+	 * @param lIp Local IP (LAN)
+	 * @param port Port
+	 * @param name Server Name
+	 * @param id Server ID
+	 * @param level Server Level
+	 * @param status Server Status
+	 * @param type Server Type
+	 */
+	AreaServer(int socket, uint32_t eIp, uint32_t lIp, uint32_t port, char* name, uint8_t * id, uint16_t level,uint8_t status,uint16_t type);
 
-		/**
-		 * Server Status Setter
-		 * @param status Server Status
-		 */
-		void setStatus(uint8_t status);
+	/**
+	 * Area Server Destructor
+	 */
+	~AreaServer();
 
-		/**
-		 * Server User Count Setter
-		 * @param users Server User Count
-		 */
-		void setUsers(uint16_t users);
+	/**
+	 * Server Status Setter
+	 * @param status Server Status
+	 */
+	void setStatus(uint8_t status);
 
-		/**
-		 * Server Type Setter
-		 * @param type Server Type
-		 */
-		void setType(uint16_t type);
+	/**
+	 * Server User Count Setter
+	 * @param users Server User Count
+	 */
+	void setUsers(uint16_t users);
 
-		/**
-		 * Server Level Setter
-		 * @param level Server Level
-		 */
-		void setLevel(uint16_t level);
+	/**
+	 * Server Type Setter
+	 * @param type Server Type
+	 */
+	void setType(uint16_t type);
 
-		/**
-		 * Creates Server Display Structure (for lobby)
-		 * @param output Output Buffer
-		 * @param outputLen Output Buffer Length (in Bytes)
-		 * @param clientIP Public Client IP Address
-		 */
-		bool GetServerLine(uint8_t * output,uint16_t outputLen, uint32_t clientIP);
+	/**
+	 * Server Level Setter
+	 * @param level Server Level
+	 */
+	void setLevel(uint16_t level);
+
+	/**
+	 * Returns the Area Server's Display Name
+	 * @return Server Name
+	 */
+	const char * GetServerName();
+
+	/**
+	 * Returns the Area Server's current Level
+	 * @return Server Level
+	 */
+	uint16_t GetServerLevel();
+
+	/**
+	 * Returns the Area Server's current Status
+	 * @return Server Status
+	 */
+	uint8_t GetServerStatus();
+
+	/**
+	 * Returns the Area Server's current Status in a human-readable fashion
+	 * @return Server Status
+	 */
+	const char * GetServerStatusText();
+
+	/**
+	 * Returns the Area Server's current number of active players
+	 * @return Player Count
+	 */
+	uint16_t GetPlayerCount();
+
+	/**
+	 * Creates Server Display Structure (for lobby)
+	 * @param output Output Buffer
+	 * @param outputLen Output Buffer Length (in Bytes)
+	 * @param clientIP Public Client IP Address
+	 */
+	bool GetServerLine(uint8_t * output,uint16_t outputLen, uint32_t clientIP);
+
 };
 
 #endif

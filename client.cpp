@@ -111,9 +111,18 @@ void Client::CommonConstructor(int socket)
  */
 Client::~Client()
 {
-	// Delete Area Server Object
+	// Client was an Area Server
 	if (this->aServ != NULL)
+	{
+		// Remove Area Server from Server List
+		Server::getInstance()->GetAreaServerList()->remove(this->aServ);
+
+		// Delete Area Server Object
 		delete this->aServ;
+
+		// Notify Administrator
+		printf("REMOVED AREA SERVER FROM LIST!\n");
+	}
 
 	// Free RX Buffer
 	delete[] this->rxBuffer;
@@ -126,7 +135,6 @@ Client::~Client()
 	// Close Socket
 	close(this->socket);
 	this->logFile.close();
-
 }
 
 /**
@@ -856,13 +864,12 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			/*
 			uint16_t unk1;
 			char diskid[65];
-			uint16_t unk2; // 0x01? player count maybe?
+			uint16_t partyslot; // 1-3
 			char servername[]; // variable length, null terminated
-			char player1[]; // variable length, null terminated
-			char player2[]; // variable length, null terminated
-			char player3[]; // variable length, null terminated
-			uint8_t unk3; // 0x01?
-			uint32_t unk4; // 0x00?
+			char playername[]; // variable length, null terminated
+			uint16_t unk3;
+			uint8_t unk4; // 0x01?
+			uint32_t unk5; // 0x00?
 			*/
 
 			//uint8_t uRes[] = {0x00,0x01};
@@ -2501,7 +2508,6 @@ bool Client::sendHTTPImage(const char * fileName)
 		else
 		{
 			// Send Warning to User
-				printf("%s\n", filePath);
 			char * warning = (char *)"Image couldn't be found!";
 			sendHTTP(warning, strlen(warning), (char *)"text/plain");
 			result = false;
@@ -2572,15 +2578,24 @@ bool Client::ProcessRXBuffer()
 		// Server Status requested
 		if (requestedPage[0] == 0)
 		{
+			// Fetch Area Server List from Server Singleton
+			std::list<AreaServer *> * areaServer = Server::getInstance()->GetAreaServerList();
+
 			// Fetch Client List from Server Singleton
 			std::list<Client *> * clients = Server::getInstance()->GetClientList();
 
-			// Allocate & Render Server Status Information Text
-			char * serverStatus = new char[1024 * clients->size()];
-			memset(serverStatus, 0, 1024 * clients->size());
+			// Single Time Game Client Header Render Bit
+			bool renderedGameClientListHeader = false;
 
-			// Client Ghost Counter
-			uint32_t ghostClients = 0;
+			// Calculate the Server Status Buffer Size
+			uint32_t serverStatusBufferSize = 524288 + 256 * (clients->size() + areaServer->size());
+
+			// Allocate & Render Server Status Information Text
+			char * serverStatus = new char[serverStatusBufferSize];
+			memset(serverStatus, 0, serverStatusBufferSize);
+
+			// Render Server Status Page Header
+			snprintf(serverStatus, serverStatusBufferSize - 1, "<html><head><meta charset=\"shift-jis\" /><title>.hack//fragment Server Status</title></head><body>");
 
 			// Iterate Clients
 			for(std::list<Client *>::iterator it = clients->begin(); it != clients->end(); it++)
@@ -2595,25 +2610,45 @@ bool Client::ProcessRXBuffer()
 					if (client->GetDiskID() == NULL || client->GetSaveID() == NULL) continue;
 
 					// Client is missing character display data
-					if (client->GetCharacterSaveID() == NULL || client->GetCharacterName() == NULL)
-					{
-						// Output Client Information
-						sprintf(serverStatus + strlen(serverStatus), "Ghost: %s / %s\n", client->GetDiskID(), client->GetSaveID());
+					if (client->GetCharacterSaveID() == NULL || client->GetCharacterName() == NULL) continue;
 
-						// Add Client to Ghosts
-						ghostClients++;
-						continue;
+					// Client List Header has to get rendered
+					if (!renderedGameClientListHeader)
+					{
+						// Render Client List Header
+						snprintf(serverStatus + strlen(serverStatus), serverStatusBufferSize - strlen(serverStatus) - 1, "<div>Lobby Player List</div>");
+
+						// Prevent duplicate List Header Render
+						renderedGameClientListHeader = true;
 					}
 
 					// Output Client Information
-					sprintf(serverStatus + strlen(serverStatus), "Character: %s / %s / %s / %s (%s Level %u, HP %u, SP %u, GP %lld, Height %s, Weight %s) / %s / %s / %s\n", client->GetDiskID(), client->GetSaveID(), client->GetCharacterSaveID(), client->GetCharacterName(), client->GetCharacterClassName(), client->GetCharacterLevel(), client->GetCharacterHP(), client->GetCharacterSP(), client->GetCharacterGP(), client->GetCharacterModelHeightText(), client->GetCharacterModelWeightText(), client->GetCharacterGreeting(), client->GetCharacterModelPortrait(true), client->GetCharacterModelPortrait(false));
+					snprintf(serverStatus + strlen(serverStatus), serverStatusBufferSize - strlen(serverStatus) - 1, "<div><img src=\"images/%s.png\" />%s (%s Level %u, HP %u / SP %u, %lld GP)</div>\n", client->GetCharacterModelPortrait(true), client->GetCharacterName(), client->GetCharacterClassName(), client->GetCharacterLevel(), client->GetCharacterHP(), client->GetCharacterSP(), client->GetCharacterGP());
 				}
 			}
 
-			// TODO Iterate Area Server
+			// Area Server List Header has to get rendered
+			if (areaServer->size() > 0)
+			{
+				// Render Area Server List Header
+				snprintf(serverStatus + strlen(serverStatus), serverStatusBufferSize - strlen(serverStatus) - 1, "<div>Area Server List</div>");
+			}
+
+			// Iterate Area Server
+			for(std::list<AreaServer *>::iterator it = areaServer->begin(); it != areaServer->end(); it++)
+			{
+				// Fetch Area Server Object
+				AreaServer * server = *it;
+
+				// Output Server Information
+				snprintf(serverStatus + strlen(serverStatus), serverStatusBufferSize - strlen(serverStatus) - 1, "<div>%s (Level %u, %s, %u Player)\n", server->GetServerName(), server->GetServerLevel(), server->GetServerStatusText(), server->GetPlayerCount());
+			}
+
+			// Render Server Status Page Footer
+			snprintf(serverStatus + strlen(serverStatus), serverStatusBufferSize - strlen(serverStatus) - 1, "</body></html>");
 
 			// Output Server Status information via HTTP
-			sendHTTP(serverStatus, strlen(serverStatus), (char *)"text/plain");
+			sendHTTP(serverStatus, strlen(serverStatus), (char *)"text/html");
 
 			// Free Memory
 			delete [] serverStatus;

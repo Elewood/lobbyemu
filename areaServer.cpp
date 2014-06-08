@@ -98,6 +98,56 @@ void AreaServer::setLevel(uint16_t level)
 }
 
 /**
+ * Returns the Area Server's Display Name
+ * @return Server Name
+ */
+const char * AreaServer::GetServerName()
+{
+	// Return Server Name
+	return this->serverName;
+}
+
+/**
+ * Returns the Area Server's current Level
+ * @return Server Level
+ */
+uint16_t AreaServer::GetServerLevel()
+{
+	// Return Server Level
+	return this->serverLevel;
+}
+
+/**
+ * Returns the Area Server's current Status
+ * @return Server Status
+ */
+uint8_t AreaServer::GetServerStatus()
+{
+	// Return Server Status
+	return this->serverStatus;
+}
+
+/**
+ * Returns the Area Server's current Status in a human-readable fashion
+ * @return Server Status
+ */
+const char * AreaServer::GetServerStatusText()
+{
+	// Return Server Status
+	return GetServerStatus() == 0 ? "Available" : "Busy";
+}
+
+/**
+ * Returns the Area Server's current number of active players
+ * @return Player Count
+ */
+uint16_t AreaServer::GetPlayerCount()
+{
+	// Return Player Count
+	return this->serverUsers;
+}
+
+/**
  * Creates Server Display Structure (for lobby)
  * @param output Output Buffer
  * @param outputLen Output Buffer Length (in Bytes)
