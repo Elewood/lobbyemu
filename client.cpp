@@ -2417,14 +2417,26 @@ bool Client::sendHTTP(char * buffer, uint32_t bufferLength, char * contentType)
 {
 	// Allocate Memory
 	char httpHeader[512];
-	sprintf(httpHeader, "HTTP/1.1 200 OK\r\nContent-Length: %u\r\nContent-Type: %s\r\n\r\n", bufferLength, contentType);
+	sprintf(httpHeader, "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: %u\r\nContent-Type: %s\r\n\r\n", bufferLength, contentType);
 	
 	// Send Data
 	int headerSend = send(socket, httpHeader, strlen(httpHeader), 0);
+
+	// Header failed to send
 	int dataSend = send(socket, buffer, bufferLength, 0);
 
+	// Result
+	bool result = headerSend == (int)strlen(httpHeader) && dataSend == (int)bufferLength;
+
+	// Error occured
+	if (!result)
+	{
+		// Log Error
+		printf("A HTTP Transmission Error occured (Header Send = %d / %u, Data Send = %d / %u)\n", headerSend, strlen(httpHeader), dataSend, bufferLength);
+	}
+
 	// Return Result
-	return headerSend == (int)strlen(httpHeader) && dataSend == (int)bufferLength;
+	return result;
 }
 
 /**
@@ -2680,6 +2692,9 @@ bool Client::ProcessRXBuffer()
 
 		// Discard Data
 		MoveRXPointer(this->rxBufferPosition * (-1));
+
+		// Disconnect Webclients after their request to stop lingering Keep-Alives
+		return false;
 	}
 
 	// Game / Area Server / Undefined Processing

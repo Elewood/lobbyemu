@@ -311,8 +311,8 @@ int server_loop(int server)
 			it++;
 		}
 
-		// Prevent CPU Overload (1ms Sleep)
-		usleep(1000);
+		// Prevent CPU Overload (0.1ms Sleep)
+		usleep(100);
 	}
 
 	// Free Buffer Memory
