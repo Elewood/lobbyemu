@@ -55,6 +55,9 @@ void Client::CommonConstructor(int socket)
 	// Save Socket
 	this->socket = socket;
 
+	// Set Client Type to undefined state
+	this->clientType = 0;
+
 	// Initialize Area Server Field
 	this->aServ = NULL;
 
@@ -2554,7 +2557,7 @@ bool Client::ProcessRXBuffer()
 			return true;
 		
 		// Terminating HTTP Request String not possible (buffer overrun check)
-		if (this->rxBufferPosition == rxBufferLength)
+		if (this->rxBufferPosition == this->rxBufferLength)
 			return false;
 
 		// Terminate HTTP Request String
@@ -2708,6 +2711,9 @@ bool Client::ProcessRXBuffer()
 			{
 				// Blindly assume that this is a Webclient for now (I really don't want to listen on a separate port for this)
 				this->clientType = CLIENTTYPE_WEBCLIENT;
+
+				// Notify Administrator
+				printf("Switched Client into Webclient Mode!\n");
 
 				// Resume Handling in the Webclient Handler (just in case all the data came in in one TCP recv call)
 				goto webClientHandler;

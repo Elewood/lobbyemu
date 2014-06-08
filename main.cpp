@@ -301,7 +301,7 @@ int server_loop(int server)
 				delete client;
 
 				// Output Information
-				printf("Encountered Invalid Packet Data!\n");
+				printf("Closed Connection to Client!\n");
 
 				// Continue Iterator
 				continue;
@@ -311,8 +311,8 @@ int server_loop(int server)
 			it++;
 		}
 
-		// Prevent CPU Overload (0.1ms Sleep)
-		usleep(100);
+		// Prevent CPU Overload (1ms Sleep)
+		usleep(1000);
 	}
 
 	// Free Buffer Memory
