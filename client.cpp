@@ -3,7 +3,9 @@
 #include <unistd.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 #include <stdlib.h>
+#include <errno.h>
 #include "opcode.h"
 #include "client.h"
 #include "server.h"
@@ -2420,24 +2422,94 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
  */
 bool Client::sendHTTP(char * buffer, uint32_t bufferLength, char * contentType)
 {
-	// Allocate Memory
+	// Result
+	bool result = true;
+
+	// Send Progress Meter
+	int sentData = 0;
+	
+	// Craft HTTP Header
 	char httpHeader[512];
 	sprintf(httpHeader, "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: %u\r\nContent-Type: %s\r\n\r\n", bufferLength, contentType);
-	
-	// Send Data
-	int headerSend = send(socket, httpHeader, strlen(httpHeader), 0);
 
-	// Header failed to send
-	int dataSend = send(socket, buffer, bufferLength, 0);
+	// Send Header Data
+	while (result && sentData < (int)strlen(httpHeader))
+	{
+		// Send Data
+		int sendResult = send(socket, httpHeader + sentData, strlen(httpHeader) - sentData, 0);
 
-	// Result
-	bool result = headerSend == (int)strlen(httpHeader) && dataSend == (int)bufferLength;
+		// Sent Data
+		if (sendResult > 0)
+		{
+			// Accumulate Progress
+			sentData += sendResult;
+		}
+
+		// Clean Disconnect
+		else if (sendResult == 0)
+		{
+			// Set Result
+			result = false;
+		}
+
+		// TX Buffer is full
+		else if (errno == EAGAIN || errno == EWOULDBLOCK)
+		{
+			// Wait 1ms then retry
+			usleep(1000);
+		}
+
+		// Unclean Disconnect
+		else
+		{
+			// Set Result
+			result = false;
+		}
+	}
+
+	// Reset Progress Meter
+	sentData = 0;
+
+	// Send Body Data
+	while (result && sentData < (int)bufferLength)
+	{
+		// Send Data
+		int sendResult = send(socket, buffer + sentData, bufferLength - sentData, 0);
+
+		// Sent Data
+		if (sendResult > 0)
+		{
+			// Accumulate Progress
+			sentData += sendResult;
+		}
+
+		// Clean Disconnect
+		else if (sendResult == 0)
+		{
+			// Set Result
+			result = false;
+		}
+
+		// TX Buffer is full
+		else if (errno == EAGAIN || errno == EWOULDBLOCK)
+		{
+			// Wait 1ms then retry
+			usleep(1000);
+		}
+
+		// Unclean Disconnect
+		else
+		{
+			// Set Result
+			result = false;
+		}
+	}
 
 	// Error occured
 	if (!result)
 	{
 		// Log Error
-		printf("A HTTP Transmission Error occured (Header Send = %d / %u, Data Send = %d / %u)\n", headerSend, strlen(httpHeader), dataSend, bufferLength);
+		printf("A HTTP Transmission Error occured!\n");
 	}
 
 	// Return Result
