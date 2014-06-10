@@ -941,7 +941,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 				uint8_t * postServerID = serverID + 8;
 
 				// Overflow Protection
-				if (postServerID <= arg[aSize])
+				if (postServerID <= &arg[aSize])
 				{
 					printf("Set STATUS: %02X\n",*sStatus);			
 					this->aServ->setStatus(*sStatus);
@@ -1384,55 +1384,57 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			break;
 		}
 
-
-		// TODO Continue Overflow-Proofing here
 		case OPCODE_DATA_BBS_GETMENU:
 		{
 			//BBS_GET_THREADS
 			printf("BBS_GET_THREADS");
 			
-			uint16_t catID = ntohs(*(uint16_t*)(arg));
-			
-			if(catID == 0)
+			// Minimal Argument Size
+			if (aSize >= 2)
 			{
-				uint8_t uRes[] = {0x00,0x01};
-				sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_BBS_CATEGORYLIST);
+				uint16_t catID = ntohs(*(uint16_t*)(arg));
+			
+				if(catID == 0)
+				{
+					uint8_t uRes[] = {0x00,0x01};
+					sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_BBS_CATEGORYLIST);
 			
 			
-				uint8_t uRes2[36] = {0};
-				uint16_t * catID = (uint16_t *)uRes2;
-				uint8_t * catName = (uint8_t *)&catID[1];
-				*catID = htons(1);
-				snprintf((char*)catName,33,"This is not a real cat yet...");
-				sendPacket30(uRes2,sizeof(uRes2),OPCODE_DATA_BBS_ENTRY_CATEGORY);			
-			}
-			else
-			{
-				uint8_t uRes[] = {0x00,0x01};
-				sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_BBS_THREADLIST);
+					uint8_t uRes2[36] = {0};
+					uint16_t * catID = (uint16_t *)uRes2;
+					uint8_t * catName = (uint8_t *)&catID[1];
+					*catID = htons(1);
+					snprintf((char*)catName,33,"This is not a real cat yet...");
+					sendPacket30(uRes2,sizeof(uRes2),OPCODE_DATA_BBS_ENTRY_CATEGORY);			
+				}
+				else
+				{
+					uint8_t uRes[] = {0x00,0x01};
+					sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_BBS_THREADLIST);
 				
-				uint8_t uRes2[38] = {0};
-				uint32_t * thID = (uint32_t *)uRes2;
-				//uint16_t * thID = (uint16_t *)uRes2;
-				//uint16_t * thUnk = &thID[1];
-				uint8_t * thName = (uint8_t *)&thID[1];
-				*thID = htonl(0x1);
-				snprintf((char*)thName,33,"This is not a real thread...yet.");
-				sendPacket30(uRes2,sizeof(uRes2),OPCODE_DATA_BBS_ENTRY_THREAD);
-				//struct threadList
-				//{
-				//	uint32_t threadId
-				//	char *threadName
-				//
-				//
+					uint8_t uRes2[38] = {0};
+					uint32_t * thID = (uint32_t *)uRes2;
+					//uint16_t * thID = (uint16_t *)uRes2;
+					//uint16_t * thUnk = &thID[1];
+					uint8_t * thName = (uint8_t *)&thID[1];
+					*thID = htonl(0x1);
+					snprintf((char*)thName,33,"This is not a real thread...yet.");
+					sendPacket30(uRes2,sizeof(uRes2),OPCODE_DATA_BBS_ENTRY_THREAD);
+					//struct threadList
+					//{
+					//	uint32_t threadId
+					//	char *threadName
+					//
+					//
 								
 																
-			}			
-			//7849 threadCat
-			//784a error
-			//784b catEnrty
-			//784c threadList
-			//784d threadEnrty			
+				}			
+				//7849 threadCat
+				//784a error
+				//784b catEnrty
+				//784c threadList
+				//784d threadEnrty
+			}
 			
 			
 			break;
@@ -1443,7 +1445,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		{
 			printf("RECEIVED BBS_POST_GET_DETAILS\n");
 			uint8_t uRes[] = {0x00, 0x00, 0x00, 0x00, 0x54,0x48,0x49,0x53,0x20,0x49,0x53,0x20,0x41,0x20,0x54,0x45,0x53,0x54,0x20,0x50,0x4f,0x53,0x54,0x21,0x0a,0x42,0x49,0x54,0x43,0x48,0x45,0x53,0x21,0x00,0x42,0x49,0x54,0x43,0x48,0x45,0x53,0x21,0x00,0x54,0x48,0x49,0x53,0x00};
-			sendPacket30(uRes,sizeof(uRes),0x781d);	
+			sendPacket30(uRes,sizeof(uRes),0x781d);
 			/*
 			OPCODE_DATA_BBS_POST_DETAILS:
 			struct
@@ -1478,33 +1480,37 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			 			       
 			printf("GET RANKING\n");
 			
-			uint16_t rankCat = ntohs(*(uint16_t*)(arg));
-			if(rankCat == 0)
+			// Minimal Argument Size
+			if (aSize >= 2)
 			{
-				printf("TYPE: %04X\n",rankCat);
-				uint8_t uRes[] = {0x00,0x02};
+				uint16_t rankCat = ntohs(*(uint16_t*)(arg));
+				if(rankCat == 0)
+				{
+					printf("TYPE: %04X\n",rankCat);
+					uint8_t uRes[] = {0x00,0x02};
 			
-				sendPacket30(uRes,sizeof(uRes),0x7833);
+					sendPacket30(uRes,sizeof(uRes),0x7833);
 			
 			
-				uint8_t uRes2[] = {0x00,0x01, 0x30, 0x30,0x00, 0x00, 0x01};
+					uint8_t uRes2[] = {0x00,0x01, 0x30, 0x30,0x00, 0x00, 0x01};
 			
-				sendPacket30(uRes2, sizeof(uRes2), 0x7835);
-				uRes2[1] = 0x02;
-				sendPacket30(uRes2, sizeof(uRes2), 0x7835);
-			}
-			else
-			{
-				printf("CAT: %04X\n",rankCat);
-				uint8_t uRes[] = {0x00, 0x00,0x00,0x01};
-				sendPacket30(uRes, sizeof(uRes),0x7836);
-				uint8_t uRes2[] = {0x30,0x00, 0x00,0x00,0x00,0x01,0x30,0x00};
-				sendPacket30(uRes2,sizeof(uRes2),0x7837);
-				//uRes2[0] = 0x02;
-				//uRes2[4] = 0x02;
-				//sendPacket30(uRes2,sizeof(uRes2),0x7837);
+					sendPacket30(uRes2, sizeof(uRes2), 0x7835);
+					uRes2[1] = 0x02;
+					sendPacket30(uRes2, sizeof(uRes2), 0x7835);
+				}
+				else
+				{
+					printf("CAT: %04X\n",rankCat);
+					uint8_t uRes[] = {0x00, 0x00,0x00,0x01};
+					sendPacket30(uRes, sizeof(uRes),0x7836);
+					uint8_t uRes2[] = {0x30,0x00, 0x00,0x00,0x00,0x01,0x30,0x00};
+					sendPacket30(uRes2,sizeof(uRes2),0x7837);
+					//uRes2[0] = 0x02;
+					//uRes2[4] = 0x02;
+					//sendPacket30(uRes2,sizeof(uRes2),0x7837);
 				
 				
+				}
 			}
 			
 			break;
@@ -1727,65 +1733,67 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			
 		case OPCODE_DATA_LOBBY_GETSERVERS_GETLIST:
 		{
-			uint16_t lID = ntohs(*(uint16_t*)(arg));			
 			printf("RECEIVED DATA_LOBBY_GETSERVERS_GETLIST\n");
 			
-			if(lID == 0x01)
+			if (aSize >= 2)
 			{
-				std::list<AreaServer *> * areaServers = Server::getInstance()->GetAreaServerList();
-				uint8_t rServerNum[2];
-				uint16_t * numServers = (uint16_t*)rServerNum;
-				*numServers = htons(areaServers->size());
-				
-				sendPacket30(rServerNum,sizeof(rServerNum),OPCODE_DATA_LOBBY_GETSERVERS_SERVERLIST);					
-				uint8_t uRes[AS_LIST_LINE_MAXSIZE] = {0};
-				//iterate through all area servers to get their listings...
-				for(std::list<AreaServer *>::iterator it = areaServers->begin(); it != areaServers->end();/*takes care of itself...*/)
+				uint16_t lID = ntohs(*(uint16_t*)(arg));			
+				if(lID == 0x01)
 				{
-					AreaServer * as = *it;
-					as->GetServerLine(uRes,sizeof(uRes),this->asExtAddr, GetAntiCheatEngineResult());
-					sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_LOBBY_GETSERVERS_ENTRY_SERVER);
+					std::list<AreaServer *> * areaServers = Server::getInstance()->GetAreaServerList();
+					uint8_t rServerNum[2];
+					uint16_t * numServers = (uint16_t*)rServerNum;
+					*numServers = htons(areaServers->size());
+				
+					sendPacket30(rServerNum,sizeof(rServerNum),OPCODE_DATA_LOBBY_GETSERVERS_SERVERLIST);					
+					uint8_t uRes[AS_LIST_LINE_MAXSIZE] = {0};
+					//iterate through all area servers to get their listings...
+					for(std::list<AreaServer *>::iterator it = areaServers->begin(); it != areaServers->end();/*takes care of itself...*/)
+					{
+						AreaServer * as = *it;
+						as->GetServerLine(uRes,sizeof(uRes),this->asExtAddr, GetAntiCheatEngineResult());
+						sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_LOBBY_GETSERVERS_ENTRY_SERVER);
 											
-					it++;				
+						it++;				
 					
-				}
+					}
 
 
-				/*
-				struct lobbyEntry
-				{
-					uint8_t unk1;
-					uint32_t IP;
-					uint16_t Port;
-					uint8_t name; //nullTerminated
-					uint16_t Level;
-					uint16_t sType;
-					uint16_t pcs;
-					uint8_t sStatus;
-					uint8_t ID;
-				}
+					/*
+					struct lobbyEntry
+					{
+						uint8_t unk1;
+						uint32_t IP;
+						uint16_t Port;
+						uint8_t name; //nullTerminated
+						uint16_t Level;
+						uint16_t sType;
+						uint16_t pcs;
+						uint8_t sStatus;
+						uint8_t ID;
+					}
 				
-				*/								
+					*/								
 									
-			}
-			else
-			{		
-				uint8_t uRes[] = {0x00,0x01};
-				sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_LOBBY_GETSERVERS_CATEGORYLIST);
+				}
+				else
+				{		
+					uint8_t uRes[] = {0x00,0x01};
+					sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_LOBBY_GETSERVERS_CATEGORYLIST);
 			
 
-				uint8_t uRes2[38];
-				uint16_t * dID = (uint16_t*)uRes2;
-				char * dName = (char *)&dID[1];
+					uint8_t uRes2[38];
+					uint16_t * dID = (uint16_t*)uRes2;
+					char * dName = (char *)&dID[1];
 				
-				*dID = htons(0x01);
-				strncpy(dName,"MAIN",34);
+					*dID = htons(0x01);
+					strncpy(dName,"MAIN",34);
 				
-				sendPacket30(uRes2,sizeof(uRes2),OPCODE_DATA_LOBBY_GETSERVERS_ENTRY_CATEGORY);
+					sendPacket30(uRes2,sizeof(uRes2),OPCODE_DATA_LOBBY_GETSERVERS_ENTRY_CATEGORY);
 			
-				break;
+					break;
+				}
 			}
-			
 		}			
 
 		
@@ -1812,54 +1820,57 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 						
 			printf("RECEIVED DATA_LOBBY_GETMENU\n");
 
-
-			uint16_t lID = ntohs(*(uint16_t*)(arg));
-
-			if(lID == 1)
+			// Minimal Argument Size
+			if (aSize >= 2)
 			{
-				//uint16_t entryID, char*name,uint16_t numUsers, uint8_t lobbyStatus?
-				//uint8_t uRes2[] = {0x00,0x01,0x54,0x68,0x69,0x73,0x20,0x69,0x73,0x20,0x6e,0x6f,0x74,0x20,0x61,0x20,0x72,0x65,0x61,0x6c,0x20,0x73,0x65,0x72,0x76,0x65,0x72,0x2e,0x2e,0x2e,0x79,0x65,0x74,0x00,0x00,0x01,0x00,0x02};
-				uint8_t uRes2[50];
-				uint16_t * eID = (uint16_t*)uRes2;
-				char * eName = (char *)&eID[1];
+				uint16_t lID = ntohs(*(uint16_t*)(arg));
+
+				if(lID == 1)
+				{
+					//uint16_t entryID, char*name,uint16_t numUsers, uint8_t lobbyStatus?
+					//uint8_t uRes2[] = {0x00,0x01,0x54,0x68,0x69,0x73,0x20,0x69,0x73,0x20,0x6e,0x6f,0x74,0x20,0x61,0x20,0x72,0x65,0x61,0x6c,0x20,0x73,0x65,0x72,0x76,0x65,0x72,0x2e,0x2e,0x2e,0x79,0x65,0x74,0x00,0x00,0x01,0x00,0x02};
+					uint8_t uRes2[50];
+					uint16_t * eID = (uint16_t*)uRes2;
+					char * eName = (char *)&eID[1];
 				
-				*eID = htons(0x01);
-				strncpy(eName,"Main",34);
-				uint16_t eNameLen = strlen(eName);
-				uint16_t * eNumUsers = (uint16_t *)&eName[eNameLen + 1];
-				uint16_t * eLobbyStatus = &eNumUsers[1];
+					*eID = htons(0x01);
+					strncpy(eName,"Main",34);
+					uint16_t eNameLen = strlen(eName);
+					uint16_t * eNumUsers = (uint16_t *)&eName[eNameLen + 1];
+					uint16_t * eLobbyStatus = &eNumUsers[1];
 				
-				*eNumUsers = htons(0);
-				*eLobbyStatus = htons(0x01); //0 = RED X, 1 = OK.
+					*eNumUsers = htons(0);
+					*eLobbyStatus = htons(0x01); //0 = RED X, 1 = OK.
 				
 										
 								
 																								
-				uint8_t uRes[] = {0x00,0x01}; //number of lobbies
-				printf("Sending LOBBY_ENTRY_SERVER\n");
-				sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_LOBBY_LOBBYLIST);
+					uint8_t uRes[] = {0x00,0x01}; //number of lobbies
+					printf("Sending LOBBY_ENTRY_SERVER\n");
+					sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_LOBBY_LOBBYLIST);
 				
 				
-				printf("Sending LOBBY_ENTRY_SERVER\n");
-				sendPacket30(uRes2,sizeof(uRes2),OPCODE_DATA_LOBBY_ENTRY_LOBBY);				
+					printf("Sending LOBBY_ENTRY_SERVER\n");
+					sendPacket30(uRes2,sizeof(uRes2),OPCODE_DATA_LOBBY_ENTRY_LOBBY);				
 				
-			}
-			else
-			{
-				uint8_t uRes2[39] = {0};
+				}
+				else
+				{
+					uint8_t uRes2[39] = {0};
 
 
-				uint8_t uRes[] = {0x00,0x01}; //number of categories
-				printf("Sending LOBBY_GETMENU_OK\n");
-				sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_LOBBY_CATEGORYLIST);
+					uint8_t uRes[] = {0x00,0x01}; //number of categories
+					printf("Sending LOBBY_GETMENU_OK\n");
+					sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_LOBBY_CATEGORYLIST);
 
-				//dirty hack...
-				uRes2[1] = 0x01;			
-				sprintf((char *)uRes2 + sizeof(uint16_t),"All Lobbies");
+					//dirty hack...
+					uRes2[1] = 0x01;			
+					sprintf((char *)uRes2 + sizeof(uint16_t),"All Lobbies");
 			
-				printf("Trying to send a lobby list entry...\n");
-				sendPacket30(uRes2,sizeof(uRes2),OPCODE_DATA_LOBBY_ENTRY_CATEGORY);
+					printf("Trying to send a lobby list entry...\n");
+					sendPacket30(uRes2,sizeof(uRes2),OPCODE_DATA_LOBBY_ENTRY_CATEGORY);
 												
+				}
 			}
 			break;
 		}
@@ -1896,29 +1907,28 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		case 0x7733:
 		{
 			//Get Guild List, standard interactive menu affair?
-				
-			uint16_t cID = ntohs(*(uint16_t*)(arg));
+			if (aSize >= 2)
+			{
+				uint16_t cID = ntohs(*(uint16_t*)(arg));
 
-			if(cID == 0x00)
-			{
-				printf("Get Guild List Categories!\n");
-				uint8_t uRes[] = {0x00,0x01};
-				sendPacket30(uRes,sizeof(uRes),0x7734);
-				uint8_t uCat[] = {0x00,0x01,0x41,0x6c,0x6c,0x00};
-				sendPacket30(uCat,sizeof(uCat),0x7736);
+				if(cID == 0x00)
+				{
+					printf("Get Guild List Categories!\n");
+					uint8_t uRes[] = {0x00,0x01};
+					sendPacket30(uRes,sizeof(uRes),0x7734);
+					uint8_t uCat[] = {0x00,0x01,0x41,0x6c,0x6c,0x00};
+					sendPacket30(uCat,sizeof(uCat),0x7736);
 			
-			}
-			else
-			{
+				}
+				else
+				{
 				
-				printf("GET GUILD, CATEGORY: %u\n",cID);
-				uint8_t uRes[] = {0x00,0x01};
-				sendPacket30(uRes,sizeof(uRes),0x7737);
-				uint8_t uEntry[] = {0x00,0x01, 0x44,0x61,0x79,0x62,0x72,0x65,0x61,0x6b,0x20,0x4d,0x61,0x66,0x69,0x61,0x00}; 
-				sendPacket30(uEntry,sizeof(uEntry),0x7738);
-				
-				
-				
+					printf("GET GUILD, CATEGORY: %u\n",cID);
+					uint8_t uRes[] = {0x00,0x01};
+					sendPacket30(uRes,sizeof(uRes),0x7737);
+					uint8_t uEntry[] = {0x00,0x01, 0x44,0x61,0x79,0x62,0x72,0x65,0x61,0x6b,0x20,0x4d,0x61,0x66,0x69,0x61,0x00}; 
+					sendPacket30(uEntry,sizeof(uEntry),0x7738);
+				}
 			}
 		/*
 		//0x7734 numCats
@@ -2003,29 +2013,28 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		
 		case 0x7722:
 		{
-			//standard interactive menu affair...
-			uint16_t cID = ntohs(*(uint16_t*)(arg));
-			
-			if(cID == 0x0)
+			// Minimal Argument Size
+			if (aSize >= 2)
 			{
-				printf("GET GUILD SHOP CATEGORY LIST!\n");
-				uint8_t uRes[] = {0x00,0x01};
-				uint8_t uCat[] = {0x00,0x01, 0x41, 0x6c, 0x6c,0x00};
-				sendPacket30(uRes,sizeof(uRes),0x7723);
-				sendPacket30(uCat,sizeof(uCat),0x7725);
+				//standard interactive menu affair...
+				uint16_t cID = ntohs(*(uint16_t*)(arg));
 			
-			
-			
-			}
-			else
-			{
-				printf("GET GUILD SHOP, CATEGORY: %u\n",cID); 
-				uint8_t uRes[] = {0x00,0x01};
-				uint8_t uEnt[] = {0x00,0x01, 0x44,0x61,0x79,0x62,0x72,0x65,0x61,0x6b,0x20,0x4d,0x61,0x66,0x69,0x61,0x00};
-				sendPacket30(uRes,sizeof(uRes),0x7726);
-				sendPacket30(uEnt,sizeof(uEnt),0x7727);
-			
-			
+				if(cID == 0x0)
+				{
+					printf("GET GUILD SHOP CATEGORY LIST!\n");
+					uint8_t uRes[] = {0x00,0x01};
+					uint8_t uCat[] = {0x00,0x01, 0x41, 0x6c, 0x6c,0x00};
+					sendPacket30(uRes,sizeof(uRes),0x7723);
+					sendPacket30(uCat,sizeof(uCat),0x7725);
+				}
+				else
+				{
+					printf("GET GUILD SHOP, CATEGORY: %u\n",cID); 
+					uint8_t uRes[] = {0x00,0x01};
+					uint8_t uEnt[] = {0x00,0x01, 0x44,0x61,0x79,0x62,0x72,0x65,0x61,0x6b,0x20,0x4d,0x61,0x66,0x69,0x61,0x00};
+					sendPacket30(uRes,sizeof(uRes),0x7726);
+					sendPacket30(uEnt,sizeof(uEnt),0x7727);
+				}
 			}
 			
 			/*
@@ -2048,86 +2057,90 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		
 		case 0x772f:
 		{
-			uint16_t gID = ntohs(*(uint16_t*)(arg));
-			
-			//get guild shop item list...	
-			printf("Get Guild Shop Items. GID: %u\n",gID);
-			uint8_t uRes[] = {0x00,0x01};
-			sendPacket30(uRes,sizeof(uRes),0x7730);
-		
-		
-			//uint8_t uRes2[] = {0x00,0x00, 0x00,0x00, 0x00,0xff, 0x00,0x00,0x00,0x01};
-			uint8_t uRes2[] = {0x00,0x00, 0x00,0x00, 0x00,0xff, 0x00,0x07,0xA1,0x20};
-		/*
-			sendPacket30(uRes2,sizeof(uRes2),0x7731);
-			
-			uRes2[1] = 0x01;
-			sendPacket30(uRes2,sizeof(uRes2),0x7731);
-			
-			uRes2[1] = 0x02;
-			sendPacket30(uRes2,sizeof(uRes2),0x7731);
-			
-			uRes2[1] = 0x03;
-			sendPacket30(uRes2,sizeof(uRes2),0x7731);
-			
-			uRes2[1] = 0x04;
-			sendPacket30(uRes2,sizeof(uRes2),0x7731);
-			
-			uRes2[1] = 0x05;
-			sendPacket30(uRes2,sizeof(uRes2),0x7731);
-			
-			uRes2[1] = 0x06;
-			sendPacket30(uRes2,sizeof(uRes2),0x7731);
-			
-			uRes2[1] = 0x07;
-			sendPacket30(uRes2,sizeof(uRes2),0x7731);
-			
-			uRes2[1] = 0x08;
-			sendPacket30(uRes2,sizeof(uRes2),0x7731);
-			
-			uRes2[1] = 0x09;
-			sendPacket30(uRes2,sizeof(uRes2),0x7731);
-			
-			uRes2[1] = 0x0a;
-			sendPacket30(uRes2,sizeof(uRes2),0x7731);
-			
-			uRes2[1] = 0x0b;
-			sendPacket30(uRes2,sizeof(uRes2),0x7731);
-			
-			uRes2[1] = 0x0c;
-			sendPacket30(uRes2,sizeof(uRes2),0x7731);
-			
-			uRes2[1] = 0x0d;
-			sendPacket30(uRes2,sizeof(uRes2),0x7731);
-			*/
-			uRes2[1] = 0x0e;
-			uRes2[3] = 0x2b;
-			sendPacket30(uRes2,sizeof(uRes2),0x7731);
-			
-		//	uRes2[1] = 0x0f;
-			//sendPacket30(uRes2,sizeof(uRes2),0x7731);
-			
-			
-			
-			/*
-			7730 numItems?
-			7731 shopItem 
-			
-			struct
+			// Minimal Argument Size
+			if (aSize >= 2)
 			{
-				uint16_t type
-				uint16_t number
-				uint16_t qty
-				uint32_t price 	
+				uint16_t gID = ntohs(*(uint16_t*)(arg));
+			
+				//get guild shop item list...	
+				printf("Get Guild Shop Items. GID: %u\n",gID);
+				uint8_t uRes[] = {0x00,0x01};
+				sendPacket30(uRes,sizeof(uRes),0x7730);
+		
+		
+				//uint8_t uRes2[] = {0x00,0x00, 0x00,0x00, 0x00,0xff, 0x00,0x00,0x00,0x01};
+				uint8_t uRes2[] = {0x00,0x00, 0x00,0x00, 0x00,0xff, 0x00,0x07,0xA1,0x20};
+			/*
+				sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+				uRes2[1] = 0x01;
+				sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+				uRes2[1] = 0x02;
+				sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+				uRes2[1] = 0x03;
+				sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+				uRes2[1] = 0x04;
+				sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+				uRes2[1] = 0x05;
+				sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+				uRes2[1] = 0x06;
+				sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+				uRes2[1] = 0x07;
+				sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+				uRes2[1] = 0x08;
+				sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+				uRes2[1] = 0x09;
+				sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+				uRes2[1] = 0x0a;
+				sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+				uRes2[1] = 0x0b;
+				sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+				uRes2[1] = 0x0c;
+				sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+				uRes2[1] = 0x0d;
+				sendPacket30(uRes2,sizeof(uRes2),0x7731);
+				*/
+				uRes2[1] = 0x0e;
+				uRes2[3] = 0x2b;
+				sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+			//	uRes2[1] = 0x0f;
+				//sendPacket30(uRes2,sizeof(uRes2),0x7731);
+			
+			
+			
+				/*
+				7730 numItems?
+				7731 shopItem 
+			
+				struct
+				{
+					uint16_t type
+					uint16_t number
+					uint16_t qty
+					uint32_t price 	
 				
 				
+				}
+			
+				7732
+				
+			
+			
+				*/
 			}
-			
-			7732
-				
-			
-			
-			*/
 			
 			
 			
@@ -2303,31 +2316,35 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		//OPCODE_DATA_GUILD_GET_MEMBER_LIST_NUMCAT		 0x7611
 		//OPCODE_DATA_GUILD_GET_MEMBER_LIST_NUMCAT
 		{
-			uint16_t cID = ntohs(*(uint16_t*)(arg));
-			
-			//arg is category, ie, sort by. So you're going to have to keep track of which guild the user entered...
-			//uint8_t uRes[] = {0x00,0x00};
-			//sendPacket30(uRes,sizeof(uRes),0x7612);			
-			printf("Get Guild Member List! Cat=%u",cID);	
-			
-			
-			if(cID == 0x0)
+			// Minimal Argument Size
+			if (aSize >= 2)
 			{
-				uint8_t uRes[] = {0x00,0x01};
-				uint8_t uRes2[] = {0x00,0x01, 0x30,0x30,0x00};
-				sendPacket30(uRes,sizeof(uRes),0x7611);
-				sendPacket30(uRes2,sizeof(uRes2),0x7613);
-			}
-			else
-			{
-				uint8_t uRes[] = {0x00,0x01};
-				//				[name]          [unk] [level   ] [greeting           ]  [OSt]  [Model Details    ] 
-				uint8_t uRes2[] = {0x31,0x31,0x00,0x01, 0x00,0x10, 0x32, 0x32,0x32,0x00,  0x00,  0x00,0x00,0x00,0x00, 0x02,0x00,0x00};
-				sendPacket30(uRes,sizeof(uRes),0x7614);
-				sendPacket30(uRes2,sizeof(uRes2),0x7615);
+				uint16_t cID = ntohs(*(uint16_t*)(arg));
+			
+				//arg is category, ie, sort by. So you're going to have to keep track of which guild the user entered...
+				//uint8_t uRes[] = {0x00,0x00};
+				//sendPacket30(uRes,sizeof(uRes),0x7612);			
+				printf("Get Guild Member List! Cat=%u",cID);	
+			
+			
+				if(cID == 0x0)
+				{
+					uint8_t uRes[] = {0x00,0x01};
+					uint8_t uRes2[] = {0x00,0x01, 0x30,0x30,0x00};
+					sendPacket30(uRes,sizeof(uRes),0x7611);
+					sendPacket30(uRes2,sizeof(uRes2),0x7613);
+				}
+				else
+				{
+					uint8_t uRes[] = {0x00,0x01};
+					//				[name]          [unk] [level   ] [greeting           ]  [OSt]  [Model Details    ] 
+					uint8_t uRes2[] = {0x31,0x31,0x00,0x01, 0x00,0x10, 0x32, 0x32,0x32,0x00,  0x00,  0x00,0x00,0x00,0x00, 0x02,0x00,0x00};
+					sendPacket30(uRes,sizeof(uRes),0x7614);
+					sendPacket30(uRes2,sizeof(uRes2),0x7615);
 								
 										
-			}			
+				}
+			}
 		/*
 		0x7611 numCat
 		struct
