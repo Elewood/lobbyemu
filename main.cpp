@@ -72,6 +72,9 @@ int main(int argc, char * argv[])
 	// Error Code
 	int errorCode = ERROR_OK;
 
+	// Output Welcome Message
+	printf(".hack//fragment Lobby Emulator (GIT commit: %s)\n", GIT_VERSION);
+
 	// Register Signal Handler
 	signal(SIGINT, interrupt); // CTRL + C
 	signal(SIGTERM, interrupt); // kill & killall

@@ -2,7 +2,8 @@ TARGET = lobbyemu
 LIBS =
 CC = gcc
 CXX = g++
-CFLAGS = -g -Wall -Iinclude
+GIT_VERSION := $(shell git describe --dirty --always)
+CFLAGS = -g -Wall -Iinclude -DGIT_VERSION=\"$(GIT_VERSION)\"
 CPPFLAGS = $(CFLAGS)
 
 .PHONY: default all clean
