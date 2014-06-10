@@ -2676,8 +2676,8 @@ bool Client::ProcessRXBuffer()
 			// Fetch Client List from Server Singleton
 			std::list<Client *> * clients = Server::getInstance()->GetClientList();
 
-			// Single Time Game Client Header Render Bit
-			bool renderedGameClientListHeader = false;
+			// Zero Player Bit
+			bool noPlayersFound = true;
 
 			// Calculate the Server Status Buffer Size
 			uint32_t serverStatusBufferSize = 524288 + 256 * (clients->size() + areaServer->size());
@@ -2687,7 +2687,58 @@ bool Client::ProcessRXBuffer()
 			memset(serverStatus, 0, serverStatusBufferSize);
 
 			// Render Server Status Page Header
-			snprintf(serverStatus, serverStatusBufferSize - 1, "<html><head><meta charset=\"shift-jis\" /><title>.hack//fragment Server Status</title></head><body>");
+			snprintf(serverStatus, serverStatusBufferSize - 1,
+				"<html>\n"
+				"<head>\n"
+				"<meta charset=\"shift-jis\" />\n"
+				"<title>.hack//fragment Server Status</title>\n"
+				"<style type=\"text/css\">\n"
+				"div.pagetitle { font-size:18pt }\n"
+				"div.pagesubtitle { font-size:9pt; padding-left:0.3em; margin-bottom:1em }\n"
+				"div.sectiontitle { font-size:10pt; font-weight:bold; padding-left:0.5em; margin-top:0.5em }\n"
+				"div.textline { font-size:9pt; margin-left:2em }\n"
+				"div.characteravatar { border-style:solid; border-width:1px; border-color:black }\n"
+				"div.characterinfobox { padding:0.5em }\n"
+				"div.charactername { font-size:10pt; font-weight:bold }\n"
+				"div.characterclass { font-size:9pt; font-weight:bold; margin-bottom: 0.1em }\n"
+				"div.characterstatus { font-size:9pt; font-weight:bold }\n"
+				"span.characterhp { color:green }\n"
+				"span.charactersp { color:blue }\n"
+				"span.charactergp { color:gold }\n"
+				"div.characterdungeons { font-size:9pt; font-weight:bold }\n"
+				"div.charactermessagebox { margin-left:0.5em }\n"
+				"div.charactermessageheader { font-size:8pt; font-weight:bold }\n"
+				"div.charactermessage { border-style:solid; border-width:1px; padding:0.5em; font-size:9pt }\n"
+				"</style>\n"
+				"</head>\n"
+				"<body>\n"
+				"<div class=\"pagetitle\">.hack//fragment Server</div>\n"
+				"<div class=\"pagesubtitle\">Revision: %s</div>\n"
+				"<div class=\"sectiontitle\">Available Server</div>\n", GIT_VERSION);
+
+			// Area Server List is empty
+			if (areaServer->size() == 0)
+			{
+				// Render None Text
+				snprintf(serverStatus + strlen(serverStatus), serverStatusBufferSize - strlen(serverStatus) - 1, "<div class=\"textline\">None</div>\n");
+			}
+
+			// Area Server List contains at least one server
+			else
+			{
+				// Iterate Area Server
+				for(std::list<AreaServer *>::iterator it = areaServer->begin(); it != areaServer->end(); it++)
+				{
+					// Fetch Area Server Object
+					AreaServer * server = *it;
+
+					// Output Server Information
+					snprintf(serverStatus + strlen(serverStatus), serverStatusBufferSize - strlen(serverStatus) - 1, "<div class=\"textline\">%s - Level %u - %s - %u Player</div>\n", server->GetServerName(), server->GetServerLevel(), server->GetServerStatusText(), server->GetPlayerCount());
+				}
+			}
+
+			// Render Player Header
+			snprintf(serverStatus + strlen(serverStatus), serverStatusBufferSize - strlen(serverStatus) - 1, "<div class=\"sectiontitle\">Available Player</div>\n");
 
 			// Iterate Clients
 			for(std::list<Client *>::iterator it = clients->begin(); it != clients->end(); it++)
@@ -2704,40 +2755,56 @@ bool Client::ProcessRXBuffer()
 					// Client is missing character display data
 					if (client->GetCharacterSaveID() == NULL || client->GetCharacterName() == NULL) continue;
 
-					// Client List Header has to get rendered
-					if (!renderedGameClientListHeader)
+					// First Player we found
+					if (noPlayersFound)
 					{
-						// Render Client List Header
-						snprintf(serverStatus + strlen(serverStatus), serverStatusBufferSize - strlen(serverStatus) - 1, "<div>Lobby Player List</div>");
+						// Render Table Header
+						snprintf(serverStatus + strlen(serverStatus), serverStatusBufferSize - strlen(serverStatus) - 1, "<table>\n");
 
-						// Prevent duplicate List Header Render
-						renderedGameClientListHeader = true;
+						// Erase Zero Player Bit
+						noPlayersFound = false;
 					}
 
 					// Output Client Information
-					snprintf(serverStatus + strlen(serverStatus), serverStatusBufferSize - strlen(serverStatus) - 1, "<div><img src=\"images/%s.png\" />%s (%s Level %u, HP %u / SP %u, %lld GP)</div>\n", client->GetCharacterModelPortrait(true), client->GetCharacterName(), client->GetCharacterClassName(), client->GetCharacterLevel(), client->GetCharacterHP(), client->GetCharacterSP(), client->GetCharacterGP());
+					snprintf(serverStatus + strlen(serverStatus), serverStatusBufferSize - strlen(serverStatus) - 1,
+						"<tr>\n"
+						"<td>\n"
+						"<div class=\"characteravatar\"><img src=\"images/%s.png\" width=\"60\" height=\"64\" /></div>\n"
+						"</td>\n"
+						"<td>\n"
+						"<div class=\"characterinfobox\">\n"
+						"<div class=\"charactername\">%s</div>\n"
+						"<div class=\"characterclass\">Level %u %s</div>\n"
+						"<div class=\"characterstatus\"><span class=\"characterhp\">HP %u</span> / <span class=\"charactersp\">SP %u</span> / <span class=\"charactergp\">GP %lld</span></div>\n"
+						"<div class=\"characterdungeons\">Treasures found: %u online, %u offline</div>\n"
+						"</div>\n"
+						"</td>\n"
+						"<td>\n"
+						"<div class=\"charactermessagebox\">\n"
+						"<div class=\"charactermessageheader\">MESSAGE</div>\n"
+						"<div class=\"charactermessage\">%s</div>\n"
+						"<div>\n"
+						"</td>\n"
+						"</tr>\n", client->GetCharacterModelPortrait(false), client->GetCharacterName(), client->GetCharacterLevel(), client->GetCharacterClassName(), client->GetCharacterHP(), client->GetCharacterSP(), client->GetCharacterGP(), client->GetGodStatueCounter(true), client->GetGodStatueCounter(false), client->GetCharacterGreeting(true));
 				}
 			}
 
-			// Area Server List Header has to get rendered
-			if (areaServer->size() > 0)
+			// No Players found
+			if (noPlayersFound)
 			{
-				// Render Area Server List Header
-				snprintf(serverStatus + strlen(serverStatus), serverStatusBufferSize - strlen(serverStatus) - 1, "<div>Area Server List</div>");
+				// Render None Text
+				snprintf(serverStatus + strlen(serverStatus), serverStatusBufferSize - strlen(serverStatus) - 1, "<div class=\"textline\">None</div>\n");
 			}
 
-			// Iterate Area Server
-			for(std::list<AreaServer *>::iterator it = areaServer->begin(); it != areaServer->end(); it++)
+			// Found at least one player
+			else
 			{
-				// Fetch Area Server Object
-				AreaServer * server = *it;
-
-				// Output Server Information
-				snprintf(serverStatus + strlen(serverStatus), serverStatusBufferSize - strlen(serverStatus) - 1, "<div>%s (Level %u, %s, %u Player)\n", server->GetServerName(), server->GetServerLevel(), server->GetServerStatusText(), server->GetPlayerCount());
+				// Render Table Footer
+				snprintf(serverStatus + strlen(serverStatus), serverStatusBufferSize - strlen(serverStatus) - 1, "</table>\n");
 			}
 
 			// Render Server Status Page Footer
-			snprintf(serverStatus + strlen(serverStatus), serverStatusBufferSize - strlen(serverStatus) - 1, "</body></html>");
+			snprintf(serverStatus + strlen(serverStatus), serverStatusBufferSize - strlen(serverStatus) - 1, "</body>\n</html>");
 
 			// Output Server Status information via HTTP
 			sendHTTP(serverStatus, strlen(serverStatus), (char *)"text/html");
@@ -3307,12 +3374,50 @@ const char * Client::GetCharacterName()
 
 /**
  * Returns the Greeting Message of the logged in Character (inside of Lobby)
+ * @param htmlSafe Should the text be HTML escaped?
  * @return Character Greeting (or NULL if undetectable)
  */
-const char * Client::GetCharacterGreeting()
+const char * Client::GetCharacterGreeting(bool htmlSafe)
 {
-	// Return Greeting Message
-	return this->activeCharacter[0] != 0 ? this->activeCharacterGreeting : NULL;
+	// Static HTML Escape Buffer
+	static char html[4096];
+
+	// Character isn't logged in yet
+	if (this->activeCharacter[0] == 0) return NULL;
+
+	// Normal Message requested
+	if (!htmlSafe) return this->activeCharacterGreeting;
+
+	// Clean Buffer
+	memset(html, 0, sizeof(html));
+
+	// Escape Text
+	for (uint32_t i = 0; i < strlen(this->activeCharacterGreeting); i++)
+	{
+		// Fetch Character
+		char c = this->activeCharacterGreeting[i];
+
+		// Ampersand
+		if (c == '&') snprintf(html + strlen(html), sizeof(html) - strlen(html) - 1, "&amp;");
+
+		// Quotation Mark
+		else if (c == '"') snprintf(html + strlen(html), sizeof(html) - strlen(html) - 1, "&quot;");
+
+		// Single Quotation Mark
+		else if (c == '\'') snprintf(html + strlen(html), sizeof(html) - strlen(html) - 1, "&#039;");
+
+		// Smaller Than
+		else if (c == '<') snprintf(html + strlen(html), sizeof(html) - strlen(html) - 1, "&lt;");
+
+		// Greater Than
+		else if (c == '>') snprintf(html + strlen(html), sizeof(html) - strlen(html) - 1, "&gt;");
+
+		// Printable Sign
+		else if ((sizeof(html) - strlen(html) - 1) > 0) html[strlen(html)] = c;
+	}
+
+	// Return HTML Escaped Text
+	return html;
 }
 
 /**

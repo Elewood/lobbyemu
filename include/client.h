@@ -274,9 +274,10 @@ class Client
 
 	/**
 	 * Returns the Greeting Message of the logged in Character (inside of Lobby)
+	 * @param htmlSafe Should the text be HTML escaped?
 	 * @return Character Greeting (or NULL if undetectable)
 	 */
-	const char * GetCharacterGreeting();
+	const char * GetCharacterGreeting(bool htmlSafe);
 
 	/**
 	 * Returns the Level of the logged in Character (inside of Lobby)
