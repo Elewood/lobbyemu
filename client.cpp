@@ -3412,6 +3412,12 @@ const char * Client::GetCharacterGreeting(bool htmlSafe)
 		// Greater Than
 		else if (c == '>') snprintf(html + strlen(html), sizeof(html) - strlen(html) - 1, "&gt;");
 
+		// Carriage Return
+		else if (c == '\r') /* Skip */ ;
+
+		// Linefeed
+		else if (c == '\n') snprintf(html + strlen(html), sizeof(html) - strlen(html) - 1, "<br />");
+
 		// Printable Sign
 		else if ((sizeof(html) - strlen(html) - 1) > 0) html[strlen(html)] = c;
 	}
