@@ -796,9 +796,12 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			printf("RECEIVED AREA IP&PORT!\n");
 			uint8_t uRes[] = {0x00,0x00};
 			sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_AS_IPPORT_OK);
-			this->asLocalAddr = *(uint32_t *)arg;
-			this->asPort = *(uint16_t *)(arg + sizeof(uint32_t));
-			printf("EXTIP: %08X, INTIP: %08X, PORT: %04X\n",asExtAddr,asLocalAddr,asPort);
+			if (aSize >= 6)
+			{
+				this->asLocalAddr = *(uint32_t *)arg;
+				this->asPort = *(uint16_t *)(arg + sizeof(uint32_t));
+				printf("EXTIP: %08X, INTIP: %08X, PORT: %04X\n",asExtAddr,asLocalAddr,asPort);
+			}
 			
 			break;
 		}	
@@ -817,22 +820,33 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			printf("RECEIVED AREA SERVER PUBLISH1\n");
 			sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_AS_PUBLISH_DETAILS1_OK);
 
+			// Minimum Packet Size with Empty Server Name
+			if (aSize >= 81)
+			{
+				// Terminate Packet (to prevent overflows)
+				arg[aSize - 1] = 0;
 
-			//lets cast some fields to get at our data...
-			uint8_t * asDiskID = arg;
-			uint8_t * serverName = &asDiskID[65]; //For shame...
-			uint32_t serverNameLen = strlen((char*)serverName);
-			uint16_t * serverLevel = (uint16_t *)&serverName[serverNameLen + 1];
-			uint16_t * sType = &serverLevel[1];
-			uint16_t * sUnk = &sType[1];
-			uint8_t * sStatus = (uint8_t*)&sUnk[1];
-			uint8_t * serverID = &sStatus[1];
+				//lets cast some fields to get at our data...
+				uint8_t * asDiskID = arg;
+				char * serverName = (char *)&asDiskID[65]; //For shame...
+				uint32_t serverNameLen = strlen(serverName);
+				uint16_t * serverLevel = (uint16_t *)&serverName[serverNameLen + 1];
+				uint16_t * sType = &serverLevel[1];
+				uint16_t * sUnk = &sType[1];
+				uint8_t * sStatus = (uint8_t*)&sUnk[1];
+				uint8_t * serverID = &sStatus[1];
+				uint8_t * postServerID = serverID + 8;
 
-			// Create Area Server Object
-			this->aServ = new AreaServer(this->socket,this->asExtAddr,this->asLocalAddr,this->asPort,(char*)serverName,serverID,ntohs(*serverLevel),*sStatus,ntohs(*sType));
+				// No Overflow detected
+				if (postServerID <= &arg[aSize])
+				{
+					// Create Area Server Object
+					this->aServ = new AreaServer(this->socket,this->asExtAddr,this->asLocalAddr,this->asPort,serverName,serverID,ntohs(*serverLevel),*sStatus,ntohs(*sType));
+				}
 
-			//REGISTER AREA SERVER...
-			Server::getInstance()->GetAreaServerList()->push_back(this->aServ);
+				//REGISTER AREA SERVER...
+				Server::getInstance()->GetAreaServerList()->push_back(this->aServ);
+			}
 
 			break;
 			
@@ -874,7 +888,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			char diskid[65];
 			uint16_t partyslot; // 1-3
 			char servername[]; // variable length, null terminated
-			char playername[]; // variable length, null terminated
+			char playername[]; // variable length, null terminated, occassional corruption makes this value useless though
 			uint16_t unk3;
 			uint8_t unk4; // 0x01?
 			uint32_t unk5; // 0x00?
@@ -889,7 +903,12 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		case OPCODE_DATA_AS_UPDATE_USERNUM:
 		{
 			printf("\033[32mRECEIVED AS_UPDATE_USERNUM!\033[0m\n");
-			this->aServ->setUsers(ntohs(*(uint16_t*)(arg + sizeof(uint16_t))));
+
+			// Overflow Check
+			if (aSize >= 4)
+			{
+				this->aServ->setUsers(ntohs(*(uint16_t*)(arg + sizeof(uint16_t))));
+			}
 
 			break;
 		}
@@ -903,22 +922,35 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		}
 		case OPCODE_DATA_AS_UPDATE_STATUS:
 		{
-			
 			printf("RECEIVED AREA SERVER UPDATE STATUS\n");
-			uint16_t * unk1 = (uint16_t*)arg;
-			uint8_t * asDiskID = (uint8_t*)&unk1[1];
-			uint8_t * serverName = &asDiskID[65]; //For shame...
-			uint32_t serverNameLen = strlen((char*)serverName);
-			uint16_t * serverLevel = (uint16_t *)&serverName[serverNameLen + 1];
-			uint16_t * sType = &serverLevel[1];
-			uint8_t * sStatus = (uint8_t*)&sType[1];
-			//uint8_t * serverID = &sStatus[1];
-			printf("Set STATUS: %02X\n",*sStatus);			
-			this->aServ->setStatus(*sStatus);
-			this->aServ->setType(ntohs(*sType));
-			this->aServ->setLevel(ntohs(*serverLevel));
+
+			// Minimum Packet Length with empty Server Name
+			if (aSize >= 81)
+			{
+				// Terminate Packet to prevent Overflow
+				arg[aSize - 1] = 0;
+
+				uint16_t * unk1 = (uint16_t*)arg;
+				uint8_t * asDiskID = (uint8_t*)&unk1[1];
+				uint8_t * serverName = &asDiskID[65]; //For shame...
+				uint32_t serverNameLen = strlen((char*)serverName);
+				uint16_t * serverLevel = (uint16_t *)&serverName[serverNameLen + 1];
+				uint16_t * sType = &serverLevel[1];
+				uint8_t * sStatus = (uint8_t*)&sType[1];
+				uint8_t * serverID = &sStatus[1];
+				uint8_t * postServerID = serverID + 8;
+
+				// Overflow Protection
+				if (postServerID <= arg[aSize])
+				{
+					printf("Set STATUS: %02X\n",*sStatus);			
+					this->aServ->setStatus(*sStatus);
+					this->aServ->setType(ntohs(*sType));
+					this->aServ->setLevel(ntohs(*serverLevel));
+				}
+			}
 			break;
-		}						
+		}
 
 		case OPCODE_DATA_DISKID:
 		{
@@ -973,7 +1005,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			
 		
 			
-		case OPCODE_DATA_SAVEID:								
+		case OPCODE_DATA_SAVEID:
 		{
 			uint8_t uRes[512];
 			memset(uRes, 0, sizeof(uRes));
@@ -1217,6 +1249,17 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 
 		case 0x7862:
 		{
+			// could this be OPCODE_DATA_SEND_GREETING?
+			/*
+				uint16_t unk1;
+				uint16_t unk2;
+				uint8_t unk3;
+				uint32_t unk4;
+				uint32_t unk5;
+				uint32_t unk6;
+				uint8_t messageLength; // in bytes
+				uint8_t message[]; // messageLength bytes long (null terminator is counted)
+			*/
 			printf("RECEIVED LOBBY_???\n");
 			uint8_t uRes[] = {0x00,0x01,0x30,0x30,0x30,0x30,0x30,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x11,0x82,0x61,0x82,0x74,0x82,0x6b,0x82,0x6a,0x82,0x71,0x82,0x6e,0x82,0x72,0x82,0x64};
 			sendPacket30(uRes,sizeof(uRes),0x7847);
@@ -1342,6 +1385,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		}
 
 
+		// TODO Continue Overflow-Proofing here
 		case OPCODE_DATA_BBS_GETMENU:
 		{
 			//BBS_GET_THREADS
