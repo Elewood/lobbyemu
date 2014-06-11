@@ -57,6 +57,9 @@ class Client
 
 	// Logfile Stream
 	clOfstream logFile;
+
+	// Ban Cache to speed up Ban Evaluation
+	bool banCache;
 	
 	// Area Server Object
 	AreaServer * aServ; // set when it becomes obvious Client is an Area Server	
@@ -203,6 +206,11 @@ class Client
 	 * @return Next available Server Segment Number
 	 */
 	uint32_t getServerSegment();
+
+	/**
+	 * Write Login Log to Logfile
+	 */
+	void WriteLoginLog();
 
 	public:
 
@@ -388,6 +396,13 @@ class Client
 	 * @return Socket
 	 */
 	int GetSocket();
+
+	/**
+	 * Returns a human-readable version of the Socket IP
+	 * @param port Output Buffer for Port (optional, can be NULL)
+	 * @return IP
+	 */
+	const char * GetSocketIP(uint16_t * port);
 
 	/**
 	 * Returns the next available RX Buffer Pointer

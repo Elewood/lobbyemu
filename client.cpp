@@ -57,6 +57,9 @@ void Client::CommonConstructor(int socket)
 	// Save Socket
 	this->socket = socket;
 
+	// Reset Ban Cache
+	this->banCache = false;
+
 	// Set Client Type to undefined state
 	this->clientType = 0;
 
@@ -156,6 +159,47 @@ int Client::GetSocket()
 }
 
 /**
+ * Returns a human-readable version of the Socket IP
+ * @param port Output Buffer for Port (optional, can be NULL)
+ * @return IP (or NULL on failure)
+ */
+const char * Client::GetSocketIP(uint16_t * port)
+{
+	// IP String Return Buffer
+	static char ipstr[INET6_ADDRSTRLEN];
+
+	// Create Storage Structure
+	struct sockaddr_storage addr;
+	socklen_t size = sizeof(addr);
+	memset(&addr, 0, size);
+
+	// Determine IP Address and Port
+	int result = getpeername(GetSocket(), (struct sockaddr *)&addr, &size);
+
+	// IP Address & Port couldn't get determined
+	if (result != 0) return NULL;
+
+	// IPv4 Address
+	if (addr.ss_family == AF_INET)
+	{
+		struct sockaddr_in * s = (struct sockaddr_in *)&addr;
+		if (port != NULL) *port = ntohs(s->sin_port);
+		inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
+	}
+
+	// IPv6 Address
+	else
+	{
+		struct sockaddr_in6 * s = (struct sockaddr_in6 *)&addr;
+		if (port != NULL) *port = ntohs(s->sin6_port);
+		inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
+	}
+
+	// Return IP Address
+	return ipstr;
+}
+
+/**
  * Returns the next available RX Buffer Pointer
  * @param addPosition Considers used RX Buffer Segments in Pointer Calculation if set to true
  * @return RX Buffer Pointer
@@ -223,6 +267,40 @@ uint32_t Client::getServerSegment()
 
 	// Return next available Server Segment Number
 	return this->segServer - 1;
+}
+
+/**
+ * Write Login Log to Logfile
+ */
+void Client::WriteLoginLog()
+{
+	// Open Login Logfile
+	FILE * fd = fopen("logs/login.txt", "a");
+
+	// Failed to open Logfile
+	if (fd == NULL) return;
+
+	// Determine IP Address & Port
+	uint16_t port = 0;
+	const char * ip = GetSocketIP(&port);
+
+	// Create Time String
+	time_t rawtime;
+	struct tm * timeinfo;
+	char loginTime[128];
+	time(&rawtime);
+	timeinfo = localtime(&rawtime);
+	strftime(loginTime, sizeof(loginTime), "%c", timeinfo);
+
+	// IP Address & Port determined
+	if (ip != NULL)
+	{
+		// Write Login Information
+		fprintf(fd, "%s,%s,%s,%u,%s,%s,%s,%s,%u,%s,%u,%u,%lld,%u,%u\n", (GetAntiCheatEngineResult() ? "BANNED" : "LEGIT"), loginTime, ip, (uint32_t)port, GetDiskID(), GetSaveID(), GetCharacterSaveID(), GetCharacterName(), GetCharacterLevel(), GetCharacterClassName(), GetCharacterHP(), GetCharacterSP(), GetCharacterGP(), GetGodStatueCounter(true), GetGodStatueCounter(false));
+	}
+
+	// Close Logfile
+	fclose(fd);
 }
 
 /**
@@ -1135,9 +1213,9 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 									uint16_t * characterHP = (uint16_t *)&unk1[1];
 									uint16_t * characterSP = (uint16_t *)&characterHP[1];
 									uint32_t * characterGP = (uint32_t *)&characterSP[1];
-									uint16_t * offlineGodCounter = (uint16_t *)&characterGP[1];
-									uint16_t * onlineGodCounter = (uint16_t *)&offlineGodCounter[1];
-									// uint16_t * unk2 = (uint16_t *)&onlineGodCounter[1];
+									uint16_t * onlineGodCounter = (uint16_t *)&characterGP[1];
+									uint16_t * offlineGodCounter = (uint16_t *)&onlineGodCounter[1];
+									// uint16_t * unk2 = (uint16_t *)&offlineGodCounter[1];
 
 									// Prevent non-critical but annoying invalid data Hacking Attempts
 									if (ntohs(*characterLevel) >= MIN_CHARACTER_LEVEL && ntohs(*characterLevel) <= MAX_CHARACTER_LEVEL)
@@ -1154,6 +1232,9 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 										strncpy(this->activeCharacterSaveID, saveID, sizeof(this->activeCharacterSaveID));
 										strncpy(this->activeCharacter, characterName, sizeof(this->activeCharacter));
 										strncpy(this->activeCharacterGreeting, greeting, sizeof(this->activeCharacterGreeting));
+
+										// Write Login Attempt to Log
+										WriteLoginLog();
 									}
 								}
 							}
@@ -1243,7 +1324,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			printf("RECEIVED DATA_SELECT_CHAR\n");
 			uint8_t uRes[] = {0x00,0x00};
 			printf("Sending SELECT_CHAROK\n");
-			sendPacket30(uRes,sizeof(uRes),OPCODE_DATA_SELECT_CHAROK);
+			sendPacket30(uRes,sizeof(uRes), (GetAntiCheatEngineResult() ? OPCODE_DATA_SELECT_CHARDENIED : OPCODE_DATA_SELECT_CHAROK));
 			break;
 		}
 		
@@ -3866,8 +3947,95 @@ int Client::GetGodStatueCounter(bool online)
  */
 bool Client::GetAntiCheatEngineResult()
 {
-	// TODO Add proper evaluation
-	return false;
+	// Result
+	bool result = false;
+
+	// Ban Cache says this user is banned
+	if (banCache)
+	{
+		// Override Result
+		result = true;
+	}
+
+	// Ban Cache not set yet
+	else
+	{
+		// Open Ban Database File
+		FILE * fd = fopen("db/ban.txt", "r");
+
+		// Opened Ban Database File
+		if (fd != NULL)
+		{
+			// Get Client IP Address
+			const char * clientIP = GetSocketIP(NULL);
+
+			// Line Buffer
+			char line[1024];
+
+			// Read Lines
+			while (fgets(line, sizeof(line), fd) != NULL)
+			{
+				// Extract Ban Type Parameter
+				char * type = line;
+
+				// Ban Argument Parameter
+				char * argument = NULL;
+
+				// Determine Line Length
+				uint32_t length = strlen(line);
+
+				// Remove Linefeed & Parse Content
+				for (uint32_t i = 0; i < length; i++)
+				{
+					// Delimiter found
+					if (line[i] == ',')
+					{
+						// Argument not set yet
+						if (argument == NULL)
+						{
+							// Set Argument Pointer
+							argument = line + i + 1;
+
+							// Terminate Argument
+							line[i] = 0;
+						}
+					}
+
+					// CR / LF found
+					if (line[i] == '\r' || line[i] == '\n')
+					{
+						// Terminate Line
+						line[i] = 0;
+
+						// Stop Search
+						break;
+					}
+				}
+
+				// IP Ban Type
+				if (strcasecmp(type, "IP") == 0)
+				{
+					// IP Ban Match found
+					if (strcmp(argument, clientIP) == 0)
+					{
+						// Set Ban Result
+						result = true;
+					}
+				}
+			}
+
+			// Close File
+			fclose(fd);
+		}
+
+		// TODO Add Heuristic Evaluation
+
+		// Set Ban Cache
+		if (result) banCache = true;
+	}
+
+	// Return Result
+	return result;
 }
 
 /**

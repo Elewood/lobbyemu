@@ -292,6 +292,9 @@ The third and final one is the character id and is created when people create a 
 */
 #define OPCODE_DATA_SELECT_CHAROK	 0x78a0
 
+// probably something else but this works in our favor
+#define OPCODE_DATA_SELECT_CHARDENIED	0x78a1
+
 
 #define OPCODE_DATA_SELECT2_CHAR	  0x78a2
 /*
