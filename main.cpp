@@ -76,6 +76,7 @@ int main(int argc, char * argv[])
 	printf(".hack//fragment Lobby Emulator (GIT commit: %s)\n", GIT_VERSION);
 
 	// Register Signal Handler
+	signal(SIGPIPE, SIG_IGN); // Prevent Crashes on unhandled SIGPIPE Network Errors
 	signal(SIGINT, interrupt); // CTRL + C
 	signal(SIGTERM, interrupt); // kill & killall
 

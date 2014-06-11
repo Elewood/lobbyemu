@@ -315,7 +315,7 @@ bool Client::sendPacket30(uint8_t * args, uint32_t aSize, uint16_t opcode)
 	*/
 
 	// Send Packet
-	result = (send(this->socket, (char*)response, responseLen, 0) == (int)responseLen);
+	result = (send(this->socket, (char*)response, responseLen, MSG_NOSIGNAL) == (int)responseLen);
 
 	// Free Memory
 	delete [] response;
@@ -398,7 +398,7 @@ bool Client::sendPacket(uint8_t * packet, uint32_t packetSize,uint32_t opcode)
 	*/
 
 	// Send Packet
-	if (send(socket, (char*)response, responseLen, 0) == (int)responseLen)
+	if (send(socket, (char*)response, responseLen, MSG_NOSIGNAL) == (int)responseLen)
 	{
 		// Send Success
 		return true;
@@ -2497,7 +2497,7 @@ bool Client::sendHTTP(char * buffer, uint32_t bufferLength, char * contentType)
 	while (result && sentData < (int)strlen(httpHeader))
 	{
 		// Send Data
-		int sendResult = send(socket, httpHeader + sentData, strlen(httpHeader) - sentData, 0);
+		int sendResult = send(socket, httpHeader + sentData, strlen(httpHeader) - sentData, MSG_NOSIGNAL);
 
 		// Sent Data
 		if (sendResult > 0)
@@ -2535,7 +2535,7 @@ bool Client::sendHTTP(char * buffer, uint32_t bufferLength, char * contentType)
 	while (result && sentData < (int)bufferLength)
 	{
 		// Send Data
-		int sendResult = send(socket, buffer + sentData, bufferLength - sentData, 0);
+		int sendResult = send(socket, buffer + sentData, bufferLength - sentData, MSG_NOSIGNAL);
 
 		// Sent Data
 		if (sendResult > 0)
@@ -3072,7 +3072,7 @@ bool Client::ProcessRXBuffer()
 							crypto[KEY_SERVER]->Encrypt(decryptedResponse, sizeof(decryptedResponse), packetPayloadField, &packetPayloadFieldSize);
 
 							// Send Response
-							send(socket, response, sizeof(response), 0);
+							send(socket, response, sizeof(response), MSG_NOSIGNAL);
 
 							// Log Event
 							printf("Key Exchange finished!\n");
