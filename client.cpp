@@ -4013,7 +4013,7 @@ bool Client::GetAntiCheatEngineResult()
 				}
 
 				// IP Ban Type
-				if (strcasecmp(type, "IP") == 0)
+				if (strcasecmp(type, "IP") == 0 && argument != NULL)
 				{
 					// IP Ban Match found
 					if (strcmp(argument, clientIP) == 0)
