@@ -8,7 +8,7 @@
 #define OPCODE_KEY_EXCHANGE_ACKNOWLEDGMENT 0x36
 
 
-
+#define MAX_AS_NAME_LEN 0x14
 
 //lobby defines...
 

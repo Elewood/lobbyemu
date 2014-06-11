@@ -827,29 +827,40 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			// Minimum Packet Size with Empty Server Name
 			if (aSize >= 81)
 			{
-				// Terminate Packet (to prevent overflows)
-				arg[aSize - 1] = 0;
-
-				//lets cast some fields to get at our data...
-				uint8_t * asDiskID = arg;
-				char * serverName = (char *)&asDiskID[65]; //For shame...
-				uint32_t serverNameLen = strlen(serverName);
-				uint16_t * serverLevel = (uint16_t *)&serverName[serverNameLen + 1];
-				uint16_t * sType = &serverLevel[1];
-				uint16_t * sUnk = &sType[1];
-				uint8_t * sStatus = (uint8_t*)&sUnk[1];
-				uint8_t * serverID = &sStatus[1];
-				uint8_t * postServerID = serverID + 8;
-
-				// No Overflow detected
-				if (postServerID <= &arg[aSize])
+				//Maximum Packet Size.
+				if(aSize >= 102)
 				{
-					// Create Area Server Object
-					this->aServ = new AreaServer(this->socket,this->asExtAddr,this->asLocalAddr,this->asPort,serverName,serverID,ntohs(*serverLevel),*sStatus,ntohs(*sType));
-
-					//REGISTER AREA SERVER...
-					Server::getInstance()->GetAreaServerList()->push_back(this->aServ);
+					// Terminate Packet (to prevent overflows), and we'll try anyways.
+					arg[aSize - 1] = 0;
 				}
+					//lets cast some fields to get at our data...
+					uint8_t * asDiskID = arg;
+					//force terminate the DISKID Field...
+					arg[64] = 0x0;
+					char * serverName = (char *)&asDiskID[65]; //For shame...
+					uint32_t serverNameLen = strlen(serverName);
+					//If the string size is too big, terminate the string at the max size.
+					if(serverNameLen > MAX_AS_NAME_LEN)
+					{
+						serverName[0x21] = 0x0;
+					}
+					uint16_t * serverLevel = (uint16_t *)&serverName[serverNameLen + 1];
+					uint16_t * sType = &serverLevel[1];
+					uint16_t * sUnk = &sType[1];
+					uint8_t * sStatus = (uint8_t*)&sUnk[1];
+					uint8_t * serverID = &sStatus[1];
+					uint8_t * postServerID = serverID + 8;
+
+					// No Overflow detected
+					if (postServerID <= &arg[aSize])
+					{
+						// Create Area Server Object
+						this->aServ = new AreaServer(this->socket,this->asExtAddr,this->asLocalAddr,this->asPort,serverName,serverID,ntohs(*serverLevel),*sStatus,ntohs(*sType));
+
+						//REGISTER AREA SERVER...
+						Server::getInstance()->GetAreaServerList()->push_back(this->aServ);
+					}
+
 			}
 			else
 			{
@@ -939,13 +950,23 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			// Minimum Packet Length with empty Server Name
 			if (aSize >= 81)
 			{
-				// Terminate Packet to prevent Overflow
-				arg[aSize - 1] = 0;
+				if(aSize >= 102)
+				{
+					// Terminate Packet to prevent Overflow and try anyways.
+					arg[aSize - 1] = 0;
+				}
 
 				uint16_t * unk1 = (uint16_t*)arg;
 				uint8_t * asDiskID = (uint8_t*)&unk1[1];
+				//force terminate diskID Field
+				asDiskID[64] = 0x0;
 				uint8_t * serverName = &asDiskID[65]; //For shame...
 				uint32_t serverNameLen = strlen((char*)serverName);
+				//if the string size is too big, terminate the string at the max size.
+				if(serverNameLen > MAX_AS_NAME_LEN)
+				{
+					serverName[0x21] = 0x0;
+				}
 				uint16_t * serverLevel = (uint16_t *)&serverName[serverNameLen + 1];
 				uint16_t * sType = &serverLevel[1];
 				uint8_t * sStatus = (uint8_t*)&sType[1];
