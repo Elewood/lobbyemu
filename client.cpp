@@ -4012,14 +4012,60 @@ bool Client::GetAntiCheatEngineResult()
 					}
 				}
 
-				// IP Ban Type
-				if (strcasecmp(type, "IP") == 0 && argument != NULL)
+				// Argument set
+				if (argument != NULL)
 				{
-					// IP Ban Match found
-					if (strcmp(argument, clientIP) == 0)
+					// IP Ban Type
+					if (strcasecmp(type, "IP"))
 					{
-						// Set Ban Result
-						result = true;
+						// IP Ban Match found
+						if (strcmp(argument, clientIP) == 0)
+						{
+							// Set Ban Result
+							result = true;
+						}
+					}
+
+					// Disk ID Ban Type
+					else if (strcasecmp(type, "DID") == 0)
+					{
+						// Read Disk ID
+						const char * diskID = GetDiskID();
+
+						// Disk ID Ban Match found
+						if (diskID != NULL && strcmp(argument, diskID) == 0)
+						{
+							// Set Ban Result
+							result = true;
+						}
+					}
+
+					// Save ID Ban Type
+					else if (strcasecmp(type, "SID") == 0)
+					{
+						// Read Save ID
+						const char * saveID = GetSaveID();
+
+						// Save ID Ban Match found
+						if (saveID != NULL && strcmp(argument, saveID) == 0)
+						{
+							// Set Ban Result
+							result = true;
+						}
+					}
+
+					// Save ID Ban Type
+					else if (strcasecmp(type, "CSID") == 0)
+					{
+						// Read Save ID
+						const char * saveID = GetCharacterSaveID();
+
+						// Save ID Ban Match found
+						if (saveID != NULL && strcmp(argument, saveID) == 0)
+						{
+							// Set Ban Result
+							result = true;
+						}
 					}
 				}
 			}
