@@ -802,6 +802,10 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 				this->asPort = *(uint16_t *)(arg + sizeof(uint32_t));
 				printf("EXTIP: %08X, INTIP: %08X, PORT: %04X\n",asExtAddr,asLocalAddr,asPort);
 			}
+			else
+			{
+				printf("OPCODE_DATA_AS_IPPORT INCOMPLETE\n");
+			}
 			
 			break;
 		}	
@@ -842,10 +846,14 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 				{
 					// Create Area Server Object
 					this->aServ = new AreaServer(this->socket,this->asExtAddr,this->asLocalAddr,this->asPort,serverName,serverID,ntohs(*serverLevel),*sStatus,ntohs(*sType));
-				}
 
-				//REGISTER AREA SERVER...
-				Server::getInstance()->GetAreaServerList()->push_back(this->aServ);
+					//REGISTER AREA SERVER...
+					Server::getInstance()->GetAreaServerList()->push_back(this->aServ);
+				}
+			}
+			else
+			{
+				printf("OPCODE_DATA_AS_PUBLISH_DETAILS1 INCOMPLETE\n");
 			}
 
 			break;
@@ -909,6 +917,10 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			{
 				this->aServ->setUsers(ntohs(*(uint16_t*)(arg + sizeof(uint16_t))));
 			}
+			else
+			{
+				printf("OPCODE_DATA_AS_UPDATE_USERNUM INCOMPLETE\n");
+			}
 
 			break;
 		}
@@ -949,6 +961,11 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 					this->aServ->setLevel(ntohs(*serverLevel));
 				}
 			}
+			else
+			{
+				printf("OPCODE_DATA_AS_UPDATE_STATUS INCOMPLETE\n");
+			}
+
 			break;
 		}
 
@@ -974,6 +991,10 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 						strncpy(this->diskID, diskID, sizeof(this->diskID));
 					}
 				}
+			}
+			else
+			{
+				printf("OPCODE_DATA_DISKID INCOMPLETE\n");
 			}
 
 			// Send Default Response
@@ -1121,6 +1142,10 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 					}
 				}
 			}
+			else
+			{
+				printf("OPCODE_DATA_REGISTER_CHAR INCOMPLETE\n");
+			}
 
 			// Notify Administrator
 			printf("RECEIVED DATA_REGISTER_CHAR!\n");
@@ -1189,6 +1214,10 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 						}
 					}
 				}
+			}
+			else
+			{
+				printf("OPCODE_DATA_SELECT_CHAR INCOMPLETE\n");
 			}
 
 			// Send Default Response to Client
@@ -1435,6 +1464,10 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 				//784c threadList
 				//784d threadEnrty
 			}
+			else
+			{
+				printf("OPCODE_DATA_BBS_GETMENU INCOMPLETE\n");
+			}
 			
 			
 			break;
@@ -1511,6 +1544,10 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 				
 				
 				}
+			}
+			else
+			{
+				printf("7832 INCOMPLETE\n");
 			}
 			
 			break;
@@ -1790,10 +1827,14 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 					strncpy(dName,"MAIN",34);
 				
 					sendPacket30(uRes2,sizeof(uRes2),OPCODE_DATA_LOBBY_GETSERVERS_ENTRY_CATEGORY);
-			
-					break;
 				}
 			}
+			else
+			{
+				printf("OPCODE_DATA_LOBBY_GETSERVERS_GETLIST INCOMPLETE\n");
+			}
+			
+			break;
 		}			
 
 		
@@ -1872,6 +1913,11 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 												
 				}
 			}
+			else
+			{
+				printf("OPCODE_DATA_LOBBY_GETMENU INCOMPLETE\n");
+			}
+
 			break;
 		}
 						
@@ -1929,6 +1975,10 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 					uint8_t uEntry[] = {0x00,0x01, 0x44,0x61,0x79,0x62,0x72,0x65,0x61,0x6b,0x20,0x4d,0x61,0x66,0x69,0x61,0x00}; 
 					sendPacket30(uEntry,sizeof(uEntry),0x7738);
 				}
+			}
+			else
+			{
+				printf("7733 INCOMPLETE\n");
 			}
 		/*
 		//0x7734 numCats
@@ -2036,6 +2086,10 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 					sendPacket30(uEnt,sizeof(uEnt),0x7727);
 				}
 			}
+			else
+			{
+				printf("7722 INCOMPLETE\n");
+			}
 			
 			/*
 			7723 numcat
@@ -2140,6 +2194,10 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 			
 			
 				*/
+			}
+			else
+			{
+				printf("772F INCOMPLETE\n");
 			}
 			
 			
@@ -2344,6 +2402,10 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 								
 										
 				}
+			}
+			else
+			{
+				printf("7610 INCOMPLETE\n");
 			}
 		/*
 		0x7611 numCat
