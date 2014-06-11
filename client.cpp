@@ -972,7 +972,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 		case OPCODE_DATA_DISKID:
 		{
 			// Argument given (everything else has to be a hacking attempt and will be ignored here)
-			if (aSize >= 74)
+			if (aSize >= 10)
 			{
 				// Terminate Packet (to prevent possible overflow through hacking attempt)
 				arg[aSize - 1] = 0;
