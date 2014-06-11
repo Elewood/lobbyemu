@@ -830,7 +830,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 				// Backup Last Byte (this packet is tricky, by terminating it we cut the Server ID)
 				uint8_t backupByte = arg[aSize - 1];
 
-				// Terminate Packet (to prevent overflows)
+				// Terminate Packet (to prevent overflows in serverName)
 				arg[aSize - 1] = 0;
 
 				//lets cast some fields to get at our data...
@@ -880,7 +880,7 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 					//We don't really need to worry about the server type or status. the game know's what's up.
 				}						
 			*/
-		}			
+		}
 		
 		case OPCODE_DATA_AS_PUBLISH_DETAILS2:
 		{
