@@ -1232,9 +1232,6 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 										strncpy(this->activeCharacterSaveID, saveID, sizeof(this->activeCharacterSaveID));
 										strncpy(this->activeCharacter, characterName, sizeof(this->activeCharacter));
 										strncpy(this->activeCharacterGreeting, greeting, sizeof(this->activeCharacterGreeting));
-
-										// Write Login Attempt to Log
-										WriteLoginLog();
 									}
 								}
 							}
@@ -1311,6 +1308,9 @@ void Client::processPacket30(uint8_t * arg, uint16_t aSize, uint16_t opcode)
 							strncpy(this->diskID, diskID, sizeof(this->diskID));
 							strncpy(this->saveID, saveID, sizeof(this->saveID));
 							strncpy(this->activeCharacterSaveID, characterSaveID, sizeof(this->activeCharacterSaveID));
+
+							// Write Login Attempt to Log
+							WriteLoginLog();
 						}
 					}
 				}
