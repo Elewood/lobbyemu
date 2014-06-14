@@ -4016,7 +4016,7 @@ bool Client::GetAntiCheatEngineResult()
 				if (argument != NULL)
 				{
 					// IP Ban Type
-					if (strcasecmp(type, "IP"))
+					if (strcasecmp(type, "IP") == 0)
 					{
 						// IP Ban Match found
 						if (strcmp(argument, clientIP) == 0)
