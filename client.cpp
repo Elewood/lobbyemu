@@ -3786,7 +3786,7 @@ const char * Client::GetCharacterModelPortrait(bool rounded)
 		return NULL;
 
 	// Render Character Portrait Filename
-	sprintf(name[index], (rounded ? "xf%c%d%c_%s" : "xp%c%d%c_%s"), classLetter, modelNumber, modelType, colorCode);
+	sprintf(name[index], "x%c%c%01x%c_%s", (rounded ? 'f' : 'p'), classLetter, modelNumber, modelType, colorCode);
 
 	// Pick Result Buffer
 	char * result = name[index];
